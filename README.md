@@ -11,8 +11,10 @@
 DrayMusic has been rebuilt from the ground up to provide a great user experience on Windows
 
 Contribute to the Project/Business Contact:
-@DraydenYT : Discord
-draydenthemiiyt@gmail.com : Email
+
+Discord: @DraydenYT
+
+Email: draydenthemiiyt@gmail.com
 
 
 Just as a note, This app does not promote piracy nor let you do it, All music rights belong to the author
