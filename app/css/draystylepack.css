@@ -1,0 +1,48 @@
+button {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid transparent;
+  background-color: var(--background);
+  color: var(--text);
+  font-size: 14px;
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease, border-color 0.2s ease;
+}
+
+button:hover {
+    background-color: var(--background-hover-and-border);
+}
+
+button:active {
+    transform: scale(0.95);
+    background-color: var(--background-hover-and-border);
+    border-color: var(--song-accent);
+    color: var(--song-accent);
+}
+
+input[type=text] {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--background-hover-and-border);
+  background-color: var(--background);
+  color: var(--text);
+  cursor: text !important;
+  font-size: 14px;
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+input[type=text]:hover {
+    background-color: var(--background-hover-and-border);
+}
+
+input[type=text]:focus {
+  background-color: var(--background-hover-and-border);
+  border-color: var(--song-accent);
+}
+
+input[type=text]:focus::placeholder {
+  color: transparent;
+}
+
+input[type=text]::placeholder {
+  color: var(--placeholder-text);
+}

@@ -1,0 +1,263 @@
+<!--© DraydenYT 2026-->
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <link rel="icon" type="image/png" href="assets/icon.png">
+    <title>DrayMusic</title>
+    <script>
+        (function () {
+            var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            document.documentElement.classList.toggle('dark', prefersDark);
+            document.documentElement.classList.toggle('light', !prefersDark);
+        }());
+    </script>
+    <link rel="stylesheet" href="css/main.css">
+
+    <link rel="stylesheet" href="css/draystylepack.css">
+    <link href="assets/google.css" rel="stylesheet">
+</head>
+<body>
+    <div class="titlebar">
+        <div class="titlebar-left">
+            <img src="assets/icon.png">
+            <h1>DrayMusic</h1>
+        </div>
+        <input type="text" id="searchInput" placeholder="Search">
+        <div class="titlebar-right">
+            <button id="min-btn" class="titlebar-btn">&#xE921;</button>
+            <button id="max-btn" class="titlebar-btn">&#xE922;</button>
+            <button id="close-btn" class="titlebar-btn close">&#xE8BB;</button>
+        </div>
+    </div>
+
+    <div class="app-layout">
+        <aside id="pageSidebar" class="page-sidebar" aria-label="Main navigation">
+            <div class="sidebar-header">
+                <span class="sidebar-heading">Library</span>
+                <button id="sidebarToggle" class="icon-btn sidebar-toggle" aria-label="Collapse sidebar" title="Collapse sidebar">
+                    <span class="material-symbols-rounded">left_panel_close</span>
+                </button>
+            </div>
+            <nav class="sidebar-nav" aria-label="Pages">
+                <button class="sidebar-link active" data-page="0" aria-current="page" title="All music">
+                    <span class="material-symbols-rounded">library_music</span><span class="sidebar-label">All music</span>
+                </button>
+                <button class="sidebar-link" data-page="1" title="Favorites">
+                    <span class="material-symbols-rounded">favorite</span><span class="sidebar-label">Favorites</span>
+                </button>
+                <button class="sidebar-link" data-page="3" title="Settings">
+                    <span class="material-symbols-rounded">settings</span><span class="sidebar-label">Settings</span>
+                </button>
+                <button class="sidebar-link" data-page="2" title="Playlists">
+                    <span class="material-symbols-rounded">queue_music</span><span class="sidebar-label">Playlists</span>
+                </button>
+                <div id="sidebarPlaylistList" class="sidebar-playlists" aria-label="Your playlists"></div>
+            </nav>
+        </aside>
+
+        <div class="scroll-area page-viewport">
+            <div id="pageContainer" class="page-container">
+                <section class="page active" id="allMusicPage">
+                    <div class="page-title-header"><h2>All Music</h2></div>
+                    <div id="songList"></div>
+                </section>
+
+                <section class="page" id="favoritesList">
+                    <div class="page-title-header"><h2>Favorites</h2></div>
+                    <div id="favoritesContainer"></div>
+                </section>
+
+                <section class="page" id="playlistsList">
+                    <div class="page-title-header"><h2>Playlists</h2></div>
+                    <div id="playlistsContainer" class="playlist-grid-layout"></div>
+                </section>
+
+                <section class="page" id="equalizerPage">
+                    <div class="page-title-header"><h2>Audio Settings</h2></div>
+                    <div class="eq-page-content">
+                        <div class="control-group">
+                            <h3>Equalizer</h3>
+                            <div class="eq-sliders 10-band">
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider0" min="-12" max="12" value="0"><label>31</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider1" min="-12" max="12" value="0"><label>62</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider2" min="-12" max="12" value="0"><label>125</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider3" min="-12" max="12" value="0"><label>250</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider4" min="-12" max="12" value="0"><label>500</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider5" min="-12" max="12" value="0"><label>1k</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider6" min="-12" max="12" value="0"><label>2k</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider7" min="-12" max="12" value="0"><label>4k</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider8" min="-12" max="12" value="0"><label>8k</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider9" min="-12" max="12" value="0"><label>16k</label></div>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <h3>Playback</h3>
+                            <div class="slider-row">
+                                <label>Speed</label>
+                                <input type="range" id="speedSlider" min="0.1" max="5" step="0.0000000001" value="1">
+                                <span id="speedLabel">1.00x</span>
+                            </div>
+                            <div class="toggle-row">
+                                <label class="win-switch">
+                                    <input type="checkbox" id="preservePitch" checked>
+                                    <span class="win-switch-label">Change speed only</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <h3>Reverb</h3>
+                            <div class="slider-row">
+                                <label>Dry</label>
+                                <input type="range" id="drySlider" min="0" max="1" step="0.0000000001" value="1">
+                            </div>
+                            <div class="slider-row">
+                                <label>Wet</label>
+                                <input type="range" id="wetSlider" min="0" max="1" step="0.0000000001" value="0">
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <h3>Isolation</h3>
+                            <div class="slider-row">
+                                <label>Stereo</label>
+                                <input type="range" id="stereoWidthSlider" min="0" max="1" step="0.0000000001" value="0.5">
+                                <span id="stereoWidthLabel">0.50</span>
+                            </div>
+                            <div class="slider-row">
+                                <label>Center</label>
+                                <input type="range" id="centerGainSlider" min="0" max="1" step="0.0000000001" value="0.5">
+                                <span id="centerGainLabel">0.50</span>
+                            </div>
+                        </div>
+
+                        <div class="control-group">
+                            <h3>Echo</h3>
+                            <div class="slider-row">
+                                <label>Time</label>
+                                <input type="range" id="echoTimeSlider" min="0.02" max="1" step="0.0000000001" value="0.3">
+                                <span id="echoTimeLabel">0.30s</span>
+                            </div>
+                            <div class="slider-row">
+                                <label>Feedback</label>
+                                <input type="range" id="echoFeedbackSlider" min="0" max="0.9" step="0.0000000001" value="0.3">
+                                <span id="echoFeedbackLabel">0.30</span>
+                            </div>
+                            <div class="slider-row">
+                                <label>Mix</label>
+                                <input type="range" id="echoMixSlider" min="0" max="1" step="0.0000000001" value="0">
+                                <span id="echoMixLabel">0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <div id="contextMenu" class="context-menu" style="display: none;">
+        <div id="contextSongOptions">
+            <h4>Add to Playlist</h4>
+            <ul id="contextPlaylistItems"></ul>
+            <div class="context-actions">
+                <input type="text" id="newPlaylistInput" placeholder="New Playlist">
+                <button id="btnCreatePlaylist">Add</button>
+            </div>
+        </div>
+        <div id="contextPlaylistOptions" style="display: none;">
+            <h4>Playlist Options</h4>
+            <button id="btnRenamePlaylist" class="context-btn">Rename Playlist</button>
+            <button id="btnDeletePlaylist" class="context-btn" style="color: #ff5252;">Delete Playlist</button>
+        </div>
+        <div id="contextPlaylistSongOptions" style="display: none;">
+            <h4>Playlist Song</h4>
+            <button id="btnRemoveSongFromPlaylist" class="context-btn">Remove from Playlist</button>
+        </div>
+        <div id="contextPlayerOptions" style="display: none;">
+            <button id="menuBtnLoop" class="context-btn"><span class="material-symbols-rounded">repeat</span></button>
+            <button id="menuBtnEQ" class="context-btn"><span class="material-symbols-rounded">tune</span></button>
+            <button id="menuBtnStop" class="context-btn"><span class="material-symbols-rounded">stop</span></button>
+            <button id="menuBtnFavorite" class="context-btn"><span class="material-symbols-rounded">star</span></button>
+        </div>
+    </div>
+
+    <div id="renamePlaylistMenu" class="context-menu context-submenu" style="display: none;">
+        <h4>Rename Playlist</h4>
+        <input type="text" id="renamePlaylistInput" placeholder="Playlist name">
+        <div class="context-actions">
+            <button id="btnCancelRenamePlaylist" class="context-btn">Cancel</button>
+            <button id="btnConfirmRenamePlaylist" class="context-btn">Rename</button>
+        </div>
+    </div>
+
+    <div id="createPlaylistMenu" class="context-menu context-submenu" style="display: none;">
+        <h4>New Playlist</h4>
+        <input type="text" id="createPlaylistMenuInput" placeholder="Playlist name">
+        <div class="context-actions">
+            <button id="btnCancelCreatePlaylist" class="context-btn">Cancel</button>
+            <button id="btnConfirmCreatePlaylist" class="context-btn">Create</button>
+        </div>
+    </div>
+
+    <div class="player">
+            <div id="openNowPlaying" class="player-left">
+                <img id="currentArt" src="assets/icon.png" alt="Album Art">
+                <div class="now-playing">
+                    <h4 id="currentTitle">Not Playing</h4>
+                    <p id="currentArtist">Select a song</p>
+                </div>
+            </div>
+
+            <div class="player-main">
+                <input type="range" id="seekBar" value="0" step="0.0000000001">
+                <button id="btnFavorite" class="icon-btn wigdisable" disabled><span class="material-symbols-rounded">star</span></button>
+                <button id="btnPrev" class="icon-btn"><span class="material-symbols-rounded">skip_previous</span></button>
+                <button id="btnPlayPause" class="icon-btn"><span class="material-symbols-rounded">play_arrow</span></button>
+                <button id="btnNext" class="icon-btn"><span class="material-symbols-rounded">skip_next</span></button>
+                <button id="btnLoop" class="icon-btn wigdisable"><span class="material-symbols-rounded">repeat</span></button>
+            </div>
+
+            <div class="player-right">
+                <button id="btnAddToPlaylist" class="icon-btn" aria-label="Add playing song to playlist" title="Add to playlist" disabled><span class="material-symbols-rounded">playlist_add</span></button>
+                <button id="btnDownloadSong" class="icon-btn" aria-label="Download playing song" title="Download song" disabled><span class="material-symbols-rounded">download</span></button>
+            </div>
+        </div>
+
+    <div id="nowplayingPane" class="side-pane" style="top: 0; bottom: 0; z-index: 99999; -webkit-app-region: no-drag;">
+        <img id="nowplayingArtBackground" class="player-art" src="assets/icon.png">
+        <div class="pane-header">
+            <button id="btnCloseNowPlaying" class="icon-btn"><span class="material-symbols-rounded">close</span></button>
+        </div>
+
+<div class="pane-content" style="display: flex; align-items: center; justify-content: center; gap: 30px;">
+    <img id="nowplayingArt" src="assets/icon.png" alt="Album Art">
+    
+    <div class="nowplaying-info">
+        <div class="text-group">
+            <h2 id="nowplayingTitle">Not Playing</h2>
+            <p id="nowplayingArtist">Select a song</p>
+        </div>
+
+        <div class="nowplaying-controls">
+            <input type="range" id="seekBarNowPlaying" value="0" step="0.0000000001">
+            <div class="button-group">
+                <button id="btnPrevNowPlaying" class="icon-btn"><span class="material-symbols-rounded">skip_previous</span></button>
+                <button id="btnPlayPauseNowPlaying" class="icon-btn"><span class="material-symbols-rounded">play_arrow</span></button>
+                <button id="btnNextNowPlaying" class="icon-btn"><span class="material-symbols-rounded">skip_next</span></button>
+            </div>
+        </div>
+    </div>
+</div>
+    </div>
+
+    <canvas id="live-waveform" class="live-waveform"></canvas>
+
+    <audio id="audioElement" crossorigin="anonymous"></audio>
+
+    <script src="js/main.js"></script>
+</body>
+</html>
