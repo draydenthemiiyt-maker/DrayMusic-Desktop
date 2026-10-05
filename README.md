@@ -1,5 +1,6 @@
 # DrayMusic is back on Windows and is better than ever before!
 
+![Uploading repository-open-graph-template.jpg…]()
 
 
 With DrayMusic Desktop, You can listen to your favourite songs - Right from your Desktop!
