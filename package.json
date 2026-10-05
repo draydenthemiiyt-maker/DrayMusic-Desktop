@@ -1,0 +1,28 @@
+{
+  "name": "DrayMusicDesktop",
+  "version": "1.0.0",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "build": {
+    "appId": "com.draydenytprojects.draymusicdesktop",
+    "productName": "DrayMusic Desktop",
+    "win": {
+      "target": "nsis",
+      "icon": "icon.png"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/*/{test,__tests__,example,examples}"
+    ]
+  },
+  "devDependencies": {
+    "electron": "^13.6.9",
+    "electron-builder": "^26.8.1"
+  },
+  "dependencies": {
+    "discord-rpc": "^4.0.1"
+  }
+}
