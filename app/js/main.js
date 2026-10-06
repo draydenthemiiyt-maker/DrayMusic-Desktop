@@ -750,7 +750,7 @@ function renderSidebarPlaylists() {
         '</div>';
     for (var i = 0; i < playlistNames.length; i++) {
         var sidebarName = playlistNames[i];
-        sidebarHtml += '<button class="sidebar-playlist-link" data-page="' + (4 + i) + '" data-name="' + escapeHTML(sidebarName) + '" title="' + escapeHTML(sidebarName) + '">' +
+        sidebarHtml += '<button class="sidebar-playlist-link" data-page="' + (5 + i) + '" data-name="' + escapeHTML(sidebarName) + '" title="' + escapeHTML(sidebarName) + '">' +
             '<span class="material-symbols-rounded">music_note</span>' +
             '<span class="sidebar-playlist-label">' + escapeHTML(sidebarName) + '</span>' +
             '</button>';
@@ -893,7 +893,7 @@ function renderPlaylists() {
 function getPlaylistPageIndex(playlistName) {
     var playlistNames = Object.keys(userPlaylists).sort(compareAlphabetically);
     var playlistIndex = playlistNames.indexOf(playlistName);
-    return playlistIndex === -1 ? -1 : 4 + playlistIndex;
+    return playlistIndex === -1 ? -1 : 5 + playlistIndex;
 }
 
 function openPlaylistDetail(playlistName) {
@@ -903,7 +903,7 @@ function openPlaylistDetail(playlistName) {
     if (activePlaylistPage && activePlaylistPage.getAttribute('data-playlist') === playlistName) return;
     if (!getPlaylistDetailPage(playlistName)) renderSidebarPlaylists();
     var pageIndex = getPlaylistPageIndex(playlistName);
-    if (pageIndex < 4) return;
+    if (pageIndex < 5) return;
     if (!goToPage(pageIndex)) return;
     renderPlaylistDetail(playlistName);
 }

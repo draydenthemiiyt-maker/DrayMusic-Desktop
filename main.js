@@ -1,9 +1,8 @@
 // © DraydenYT 2026
 
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
 const RPC = require('discord-rpc');
-
 const gotTheLock = app.requestSingleInstanceLock();
 
 if (!gotTheLock) {
@@ -97,11 +96,17 @@ function createWindow() {
         resizable: true,
         show: false,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js')
+            preload: path.join(__dirname, 'preload.js'),
+            webviewTag: true
         }
     });
 
     win.loadFile('app/main.html');
+
+    win.webContents.setWindowOpenHandler(({ url }) => {
+        shell.openExternal(url);
+        return { action: 'deny' };
+    });
 
     ipcMain.on('window:minimize', () => win.minimize());
     ipcMain.on('window:maximize', () => {

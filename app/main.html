@@ -7,13 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <link rel="icon" type="image/png" href="assets/icon.png">
     <title>DrayMusic</title>
-    <script>
-        (function () {
-            var prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
-            document.documentElement.classList.toggle('dark', prefersDark);
-            document.documentElement.classList.toggle('light', !prefersDark);
-        }());
-    </script>
     <link rel="stylesheet" href="css/main.css">
 
     <link rel="stylesheet" href="css/draystylepack.css">
@@ -51,6 +44,9 @@
                 <button class="sidebar-link" data-page="3" title="Settings">
                     <span class="material-symbols-rounded">settings</span><span class="sidebar-label">Settings</span>
                 </button>
+<button class="sidebar-link" data-page="666" title="Create" onclick="window.open('https://draymusic-private.onrender.com')">
+    <span class="material-symbols-rounded">add_circle</span><span class="sidebar-label">Create</span>
+</button>
                 <button class="sidebar-link" data-page="2" title="Playlists">
                     <span class="material-symbols-rounded">queue_music</span><span class="sidebar-label">Playlists</span>
                 </button>
