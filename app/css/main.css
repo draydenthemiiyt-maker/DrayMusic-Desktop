@@ -150,6 +150,7 @@ body {
   background: transparent;
   color: var(--accent);
   border: none;
+  box-shadow: none !important;
   width: 48px;
   height: 48px;
   transition: none;
@@ -191,12 +192,14 @@ background: rgb(51, 51, 51);
     border-radius: 20px;
     border: 1px solid transparent;
     background-color: var(--panel-bg);
+    box-shadow: 0 0 0px var(--song-accent);
     backdrop-filter: blur(10px);
-    transition: opacity 0.2s, transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease, border-color 0.2s ease;
+    transition: opacity 0.2s, transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.5s ease;
 }
 
 .song-card:hover {
     background-color: var(--background-hover-and-border);
+    box-shadow: 0 0 25px var(--song-accent);
 }
 
 .song-card:active {
@@ -714,6 +717,7 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     color: var(--text-dim);
     text-align: left;
     white-space: nowrap;
+    box-shadow: none !important;
 }
 
 .sidebar-playlist-link .material-symbols-rounded {
@@ -1006,19 +1010,6 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     opacity: 1;
     visibility: visible;
     pointer-events: auto;
-}
-
-.live-waveform {
-    position: fixed;
-    bottom: 100px;
-    left: 0;
-    right: 0;
-    height: 200px;
-    width: 100%;
-    z-index: -1;
-    pointer-events: none;
-    opacity: 0.5;
-    animation: pulseEffect 50s ease-in-out infinite;
 }
 
 input[type=range] {

@@ -3,13 +3,15 @@ button {
   border-radius: 20px;
   border: 1px solid transparent;
   background-color: var(--background);
+  box-shadow: 0 0 0px var(--song-accent);
   color: var(--text);
   font-size: 14px;
-  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease, border-color 0.2s ease;
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.5s ease;
 }
 
 button:hover {
     background-color: var(--background-hover-and-border);
+    box-shadow: 0 0 12px var(--song-accent);
 }
 
 button:active {
@@ -23,11 +25,12 @@ input[type=text] {
   padding: 6px 14px;
   border-radius: 20px;
   border: 1px solid var(--background-hover-and-border);
+  box-shadow: 0 0 0px var(--song-accent);
   background-color: var(--background);
   color: var(--text);
   cursor: text !important;
   font-size: 14px;
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.5s ease;
 }
 
 input[type=text]:hover {
@@ -37,6 +40,7 @@ input[type=text]:hover {
 input[type=text]:focus {
   background-color: var(--background-hover-and-border);
   border-color: var(--song-accent);
+  box-shadow: 0 0 12px var(--song-accent);
 }
 
 input[type=text]:focus::placeholder {

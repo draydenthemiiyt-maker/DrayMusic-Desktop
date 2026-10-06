@@ -1304,7 +1304,6 @@ function initAudioEngine() {
         echoWetGainNode.connect(audioCtx.destination);
 
         applyAudioSettingsToNodes();
-        startLiveWaveform();
 
     } catch (e) {
         console.warn("Audio Engine Init Failed:", e);
@@ -1959,56 +1958,6 @@ renderSidebarPlaylists();
 goToPage(0);
 bindEvents();
 bootMusic();
-
-function startLiveWaveform() {
-    var canvas = document.getElementById("live-waveform");
-    var c = canvas.getContext("2d");
-
-    function resize() {
-        var dpr = window.devicePixelRatio || 1;
-        var displayWidth = canvas.offsetWidth;
-        var displayHeight = canvas.offsetHeight;
-        canvas.width = displayWidth * dpr;
-        canvas.height = displayHeight * dpr;
-        c.scale(dpr, dpr);
-    }
-
-    window.addEventListener("resize", resize);
-    resize();
-
-    (function draw() {
-        requestAnimationFrame(draw);
-        c.clearRect(0, 0, canvas.offsetWidth, canvas.offsetHeight);
-        if (!analyser) return;
-
-        var arr = new Uint8Array(analyser.frequencyBinCount);
-        analyser.getByteFrequencyData(arr);
-
-        var visibleBands = 100;
-        var gap = 3;
-        var barWidth = (canvas.offsetWidth / visibleBands) - gap;
-        var barHeight;
-        var x = 0;
-        var centerY = canvas.offsetHeight / 2;
-        var accentColor = document.documentElement.style.getPropertyValue('--song-accent') || '#00a0ff';
-
-        for (var i = 0; i < visibleBands; i++) {
-            var amplitude = arr[i];
-            barHeight = (amplitude / 255.0) * canvas.offsetHeight;
-
-            var intensity = Math.max(0.35, amplitude / 255.0);
-
-            c.globalAlpha = intensity;
-            c.fillStyle = accentColor;
-            
-            c.fillRect(x, centerY - (barHeight / 2), barWidth, barHeight);
-
-            x += barWidth + gap;
-        }
-        
-        c.globalAlpha = 1.0; 
-    })();
-}
 
 function applyDynamicAccent(imageSrc) {
     if (!imageSrc || imageSrc.indexOf('assets/icon.png') !== -1) {
