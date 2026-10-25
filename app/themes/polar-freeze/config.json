@@ -1,0 +1,8 @@
+{
+    "name": "Polar Freeze",
+    "author": "DrayMusic",
+    "version": "1.0.0",
+    "description": "The Polar Freeze theme.",
+    "stylesheet": "css/style.css",
+    "order": 11
+}

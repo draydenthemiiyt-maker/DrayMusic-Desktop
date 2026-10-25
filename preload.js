@@ -8,5 +8,7 @@ contextBridge.exposeInMainWorld('api', {
     onUnmaximize: (callback) => ipcRenderer.on('window:unmaximized', callback),
     isMaximized: () => ipcRenderer.invoke('window:isMaximized'),
     updateDiscordRPC: (data) => ipcRenderer.send('update-discord-rpc', data),
-    clearDiscordRPC: () => ipcRenderer.send('clear-discord-rpc')
+    clearDiscordRPC: () => ipcRenderer.send('clear-discord-rpc'),
+    getThemes: () => ipcRenderer.invoke('themes:list'),
+    openThemesFolder: () => ipcRenderer.invoke('themes:openFolder')
 });

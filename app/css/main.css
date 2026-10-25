@@ -1,28 +1,6 @@
 /* © DraydenYT 2026 */
 
-html {
-    --accent: #00a0ff;
-    --song-accent: #00a0ff;
-}
-
-html.dark {
-    --text: #ffffff;
-    --text-dim: #999999;
-    --placeholder-text: #bfbfbf;
-    --background: #202020;
-    --background-hover-and-border: #404040;
-    --panel-bg: #101010;
-}
-
-html.light {
-    --text: #000000;
-    --text-dim: #666666;
-    --placeholder-text: #404040;
-    --background: #dfdfdf;
-    --background-hover-and-border: #bfbfbf;
-    --panel-bg: #efefef;
-}
-
+/* Just cleaning the chromium garbage */
 * {
     font-family: system-ui !important;
     -webkit-user-drag: none !important;
@@ -42,6 +20,21 @@ body {
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    opacity: 0;
+    transform: scale(0.8);
+    animation: fadeIn 0.8s ease-in-out forwards;
+    animation-delay: 1s;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
 }
 
 @keyframes fadeUp {
@@ -95,11 +88,11 @@ body {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  z-index: 0;
+  z-index: -1;
   filter: blur(15px);
   transform: scale(1.2);
-  opacity: 0.15;
   pointer-events: none;
+  filter: brightness(0.15);
 }
 
 .titlebar {
@@ -110,9 +103,10 @@ body {
   justify-content: space-between;
   height: 48px;
   background-color: var(--panel-bg);
-  color: var(--song-accent);
+  color: var(--accent);
   -webkit-app-region: drag; 
 }
+
 
 .titlebar-left img {
   width: 24px;
@@ -126,6 +120,7 @@ body {
   color: var(--accent);
 }
 
+/* Some layout for the gay search bar */
 #searchInput {
   width: 300px;
   max-width: 40%;
@@ -143,8 +138,9 @@ body {
   margin-left: 16px;
 }
 
+/* Hey bro, can you just leave me alone? */
 .titlebar-btn {
-  font-family: 'Segoe MDL2 Assets' !important;
+  font-family: 'Segoe Fluent Icons', 'Segoe MDL2 Assets' !important;
   font-size: 10px;
   border-radius: 0px;
   background: transparent;
@@ -176,12 +172,38 @@ background: rgb(51, 51, 51);
     color: rgb(0, 0, 0);
 }
 
+html.legacy-platform .titlebar-left, html.legacy-platform .titlebar-right {
+  display: none;
+}
+
+html.legacy-platform .titlebar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  -webkit-app-region: no-drag;
+  pointer-events: none;
+  justify-content: flex-end;
+  padding-right: 20px;
+  background-color: transparent;
+}
+
+html.legacy-platform #searchInput {
+  z-index: 9999;
+  pointer-events: auto;
+  background-color: var(--panel-bg);
+}
+
+html.legacy-platform .app-layout.sidebar-collapsed .sidebar-nav {
+    padding-top: 10px;
+}
+
 .scroll-area {
     flex: 1 1 0%;
     overflow: hidden auto;
     padding: 0px 16px 120px;
 }
 
+/* Fuck this song card blur effects wont work on it for no reason */
 .song-card {
     height: 64px;
     display: flex;
@@ -192,20 +214,20 @@ background: rgb(51, 51, 51);
     border-radius: 20px;
     border: 1px solid transparent;
     background-color: var(--panel-bg);
-    box-shadow: 0 0 0px var(--song-accent);
+    box-shadow: 0 0 0px var(--accent);
     backdrop-filter: blur(10px);
     transition: opacity 0.2s, transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.5s ease;
 }
 
 .song-card:hover {
     background-color: var(--background-hover-and-border);
-    box-shadow: 0 0 25px var(--song-accent);
+    box-shadow: 0 0 25px var(--accent);
 }
 
 .song-card:active {
     transform: scale(0.98);
     background-color: var(--background-hover-and-border);
-    border-color: var(--song-accent);
+    border-color: var(--accent);
 }
 
 .song-card.visible {
@@ -247,7 +269,7 @@ background: rgb(51, 51, 51);
   justify-content: space-between;
   height: 75px;
   background-color: var(--panel-bg);
-  padding: 0px 16px 0px 0px;
+  padding: 0px 12px 0px 6px;
   z-index: 10;
 }
 
@@ -274,11 +296,9 @@ background: rgb(51, 51, 51);
 
 #seekBar {
   width: 100%;
-  cursor: default !important;
 }
 
 .player-left {
-    height: 100%;
     display: flex;
     align-items: center;
     flex: 1;
@@ -294,21 +314,21 @@ background: rgb(51, 51, 51);
 }
 
 .player-left:hover {
-    background-color: #0000009c;
+    background-color: var(--background);
     border-radius: 10px;
 }
 
 .player-left:active {
-    background-color: #2222229c;
+    background-color: var(--background);
     border-radius: 10px;
 }
 
 .player-left img {
-    width: 75px;
-    height: 75px;
-    background: rgba(255, 255, 255, 0.1);
-    backdrop-filter: blur(20px);
+    width: 65px;
+    height: 65px;
+    background: var(--accent);
     object-fit: cover;
+    border-radius: 15px;
 }
 
 #currentArt,
@@ -350,14 +370,20 @@ background: rgb(51, 51, 51);
     border-radius: 50%;
     background-color: transparent;
     color: var(--text);
+    -webkit-app-region: no-drag;
+}
+
+.player-main .icon-btn, .player-right .icon-btn {
+      margin: 0px 4px;
 }
 
 #btnLoop.active {
-    color: var(--song-accent);
+    color: var(--accent);
     background: rgba(255, 255, 255, 0.1);
     border-radius: 50%;
 }
 
+/* HaHa it's no longer a side pane i bet a fooled you code explorers */
 .side-pane {
     background: var(--panel-bg);
     position: fixed;
@@ -370,6 +396,8 @@ background: rgb(51, 51, 51);
     display: flex;
     flex-direction: column;
     pointer-events: none;
+
+    /* Titlebar, can you please stop fucking dragging bitch, you are useless when the "side pane" is open */
     -webkit-app-region: no-drag !important;
 }
 
@@ -542,7 +570,7 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     border-radius: 8px;
     overflow: hidden;
     margin-bottom: 12px;
-    background: var(--song-accent);
+    background: var(--accent);
 }
 
 .playlist-art-grid img, .playlist-art-grid {
@@ -574,7 +602,6 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     flex: 1 1 0%;
     min-width: 0;
     margin: 0 12px;
-    cursor: pointer !important;
 }
 
 .slider-row > span {
@@ -643,7 +670,6 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     border: 0;
     border-radius: 6px;
     background: transparent;
-    color: var(--text-dim);
     text-align: left;
     white-space: nowrap;
 }
@@ -714,7 +740,6 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     border: 0;
     border-radius: 5px;
     background: transparent;
-    color: var(--text-dim);
     text-align: left;
     white-space: nowrap;
     box-shadow: none !important;
@@ -849,6 +874,7 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     margin: 0 auto;
 }
 
+/* Well we gotta be dynamic */
 @media (max-width: 760px) {
     .page {
         padding: 18px 20px 28px;
@@ -859,6 +885,7 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     }
 }
 
+/* Bros eyes hurt, let's make the animations faster */
 @media (prefers-reduced-motion: reduce) {
     .page.active,
     .page.leaving {
@@ -866,13 +893,15 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     }
 }
 
+/* Shitty google icons */
 .material-symbols-rounded {
     pointer-events: none;
 }
 
+/* Some garbage context menu left from the old DrayMusic Mobile */
 .context-menu {
     background-color: var(--panel-bg);
-    border: 1px solid var(--song-accent);
+    border: 1px solid var(--accent);
     position: fixed;
     pointer-events: none;
     border-radius: 20px;
@@ -885,6 +914,7 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     transition: opacity 0.3s cubic-bezier(0.22, 0.61, 0.36, 1), transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1), visibility 0.25s;
 }
 
+/* Yes show it */
 .context-menu.show {
     opacity: 1;
     visibility: visible;
@@ -974,7 +1004,7 @@ body:has(.side-pane.open) > *:not(.side-pane) {
 }
 
 ::-webkit-scrollbar-thumb {
-    background: var(--song-accent);
+    background: var(--accent);
     border: 2px solid transparent;
     border-radius: 3px;
     background-clip: content-box;
@@ -985,13 +1015,14 @@ body:has(.side-pane.open) > *:not(.side-pane) {
 }
 
 #btnLoop.active, #menuBtnLoop.active {
-    color: var(--song-accent) !important;
+    color: var(--accent) !important;
 }
 
 #btnFavorite.fav-active {
     color: rgb(255, 235, 59) !important;
 }
 
+/* Well we gotta blur the background */
 .context-menu-backdrop {
     opacity: 0;
     visibility: hidden;
@@ -1012,6 +1043,7 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     pointer-events: auto;
 }
 
+/* Dumb looking slider */
 input[type=range] {
      width: 100%;
      margin-bottom: 4px;
@@ -1023,21 +1055,19 @@ input[type=range] {
      outline: none;
 }
  input[type=range]::-webkit-slider-runnable-track {
-     background: var(--song-accent);
+     background: var(--accent);
      border: 0;
      border-radius: 25px;
      width: 100%;
      height: 12px;
-     cursor: pointer;
 }
  input[type=range]::-webkit-slider-thumb {
      margin-top: -6.5px;
      width: 25px;
      height: 25px;
-     background: var(--song-accent);
+     background: var(--accent);
      border: 4.5px solid var(--text);
      border-radius: 50px;
-     cursor: pointer;
      -webkit-appearance: none;
      transition: 0.3s !important;
 }
@@ -1055,23 +1085,21 @@ input[type=range] {
 }
 
  input[type=range]:focus::-webkit-slider-runnable-track {
-     background: var(--song-accent);
+     background: var(--accent);
 }
  input[type=range]::-moz-range-track {
-     background: var(--song-accent);
+     background: var(--accent);
      border: 0;
      border-radius: 25px;
      width: 100%;
      height: 12px;
-     cursor: pointer;
 }
  input[type=range]::-moz-range-thumb {
      width: 25px;
      height: 25px;
-     background: var(--song-accent);
+     background: var(--accent);
      border: 4.5px solid var(--text);
      border-radius: 50px;
-     cursor: pointer;
 }
  input[type=range]::-ms-track {
      background: transparent;
@@ -1080,30 +1108,440 @@ input[type=range] {
      color: transparent;
      width: 100%;
      height: 12px;
-     cursor: pointer;
 }
  input[type=range]::-ms-fill-lower {
-     background: var(--song-accent);
+     background: var(--accent);
      border: 0;
      border-radius: 50px;
 }
  input[type=range]::-ms-fill-upper {
-     background: var(--song-accent);
+     background: var(--accent);
      border: 0;
      border-radius: 50px;
 }
  input[type=range]::-ms-thumb {
      width: 25px;
      height: 25px;
-     background: var(--song-accent);
+     background: var(--accent);
      border: 4.5px solid var(--text);
      border-radius: 50px;
-     cursor: pointer;
      margin-top: 0px;
 }
  input[type=range]:focus::-ms-fill-lower {
-     background: var(--song-accent);
+     background: var(--accent);
 }
  input[type=range]:focus::-ms-fill-upper {
-     background: var(--song-accent);
+     background: var(--accent);
+}
+
+/* I will never be used i mean drayden is too lazy to add it to all the songs */
+.lyrics-pane {
+    --lyrics-width: 340px;
+    display: flex;
+    flex: 0 0 var(--lyrics-width);
+    flex-direction: column;
+    width: var(--lyrics-width);
+    background: var(--panel-bg);
+    overflow: hidden;
+    transition: width 0.4s ease, flex-basis 0.4s ease, opacity 0.3s ease, visibility 0s;
+}
+
+.lyrics-pane:not(.show) {
+    flex-basis: 0;
+    width: 0;
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: width 0.4s ease, flex-basis 0.4s ease, opacity 0.3s ease, visibility 0s 0.4s;
+}
+
+.lyrics-inner {
+    display: flex;
+    flex-direction: column;
+    width: var(--lyrics-width);
+    height: 100%;
+}
+
+.lyrics-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 58px;
+    padding: 0 12px 0 20px;
+}
+
+.lyrics-heading {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.lyrics-heading-label {
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.lyrics-song {
+    font-size: 12px;
+    color: var(--text-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.lyrics-collapse {
+    flex: 0 0 40px;
+    width: 40px;
+    height: 40px;
+    color: var(--accent);
+}
+
+.lyrics-body {
+    flex: 1 1 0%;
+    min-height: 0;
+    padding: 4px 20px 24px;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+.lyrics-text {
+    font-size: 17px;
+    line-height: 1.75;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.lyrics-text.lyrics-status {
+    color: var(--text-dim);
+    font-size: 14px;
+}
+
+button.lyrics-fab {
+    position: fixed;
+    right: 16px;
+    bottom: calc(75px + 16px + env(safe-area-inset-bottom, 0px));
+    z-index: 60;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 52px;
+    height: 52px;
+    padding: 0;
+    border: 1px solid var(--accent);
+    border-radius: 50%;
+    background: var(--panel-bg);
+    color: var(--accent);
+    box-shadow: 0 0 18px var(--accent);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: scale(0.6);
+    transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), visibility 0s 0.25s;
+}
+
+button.lyrics-fab.show {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transform: scale(1);
+    transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275), visibility 0s;
+}
+
+button.lyrics-fab:active {
+    transform: scale(0.92);
+}
+
+@media (max-width: 760px) {
+    .lyrics-pane {
+        position: fixed;
+        top: 48px;
+        right: 0;
+        bottom: 75px;
+        z-index: 50;
+        flex: none;
+        width: min(88vw, 360px);
+        box-shadow: -8px 0 24px rgba(0, 0, 0, 0.35);
+        transition: transform 0.3s ease, opacity 0.3s ease, visibility 0s;
+    }
+
+    .lyrics-pane:not(.show) {
+        flex: none;
+        width: min(88vw, 360px);
+        transform: translateX(100%);
+        transition: transform 0.3s ease, opacity 0.3s ease, visibility 0s 0.3s;
+    }
+
+    .lyrics-inner {
+        width: 100%;
+    }
+}
+
+.themes-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 4px;
+}
+
+.themes-header h3 {
+    margin: 0;
+}
+
+.themes-folder-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 12px;
+    font-size: 13px;
+}
+
+.themes-folder-btn .material-symbols-rounded {
+    font-size: 18px;
+}
+
+.themes-hint {
+    margin: 0 0 14px;
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.themes-message {
+    grid-column: 1 / -1;
+    margin: 0;
+    color: var(--text-dim);
+    font-size: 13px;
+}
+
+.themes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+    gap: 14px;
+    padding: 2px 2px 8px;
+}
+
+.theme-card {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    padding: 8px;
+    border: 2px solid var(--background-hover-and-border);
+    border-radius: 18px;
+    background-color: var(--background);
+    box-shadow: none;
+    color: var(--text);
+    text-align: left;
+}
+
+.theme-card:hover {
+    background-color: var(--background);
+    border-color: var(--text-dim);
+    box-shadow: none;
+}
+
+.theme-card:active {
+    background-color: var(--background);
+    border-color: var(--text-dim);
+    color: var(--text);
+}
+
+.theme-card.selected,
+.theme-card.selected:hover,
+.theme-card.selected:active {
+    border-color: var(--accent);
+}
+
+.theme-card .theme-check {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    display: none !important;
+    font-size: 20px;
+    color: var(--accent);
+    background: var(--background);
+    border-radius: 50%;
+}
+
+.theme-card.selected .theme-check {
+    display: block !important;
+}
+
+.theme-info {
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    min-width: 0;
+    padding: 0 4px 2px;
+}
+
+.theme-name,
+.theme-author {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.theme-name {
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.theme-author {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.theme-preview {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    height: 118px;
+    overflow: hidden;
+    border-radius: 10px;
+    background: var(--tp-background);
+    pointer-events: none;
+}
+
+.theme-preview img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.theme-preview i,
+.theme-preview b {
+    display: block;
+    font-style: normal;
+}
+
+.tp-titlebar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 15px;
+    padding: 0 7px;
+    background: var(--tp-panel-bg);
+}
+
+.tp-dot {
+    flex: 0 0 6px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--tp-accent);
+}
+
+.tp-search {
+    flex: 0 1 46%;
+    height: 7px;
+    border-radius: 4px;
+    border: 1px solid var(--tp-background-hover-and-border);
+    background: var(--tp-background);
+}
+
+.tp-body {
+    display: flex;
+    flex: 1 1 0;
+    min-height: 0;
+}
+
+.tp-sidebar {
+    flex: 0 0 24%;
+    padding: 7px 5px;
+    background: var(--tp-panel-bg);
+}
+
+.tp-nav {
+    height: 5px;
+    margin-bottom: 6px;
+    border-radius: 3px;
+    background: var(--tp-text-dim);
+    opacity: 0.55;
+}
+
+.tp-nav.active {
+    background: var(--tp-accent);
+    opacity: 1;
+}
+
+.tp-main {
+    flex: 1 1 0;
+    min-width: 0;
+    padding: 6px;
+}
+
+.tp-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    height: 17px;
+    margin-bottom: 4px;
+    padding: 0 4px;
+    border-radius: 6px;
+    background: var(--tp-panel-bg);
+}
+
+.tp-art {
+    flex: 0 0 10px;
+    width: 10px;
+    height: 10px;
+    border-radius: 3px;
+    background: var(--tp-background-hover-and-border);
+}
+
+.tp-lines {
+    display: flex;
+    flex: 1 1 0;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.tp-lines b {
+    height: 3px;
+    border-radius: 2px;
+}
+
+.tp-lines b:first-child {
+    width: 62%;
+    background: var(--tp-text);
+}
+
+.tp-lines b:last-child {
+    width: 38%;
+    background: var(--tp-text-dim);
+}
+
+.tp-player {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 22px;
+    padding: 0 8px;
+    background: var(--tp-panel-bg);
+}
+
+.tp-seek {
+    flex: 1 1 0;
+    height: 3px;
+    border-radius: 2px;
+    background: var(--tp-background-hover-and-border);
+}
+
+.tp-seek i {
+    width: 40%;
+    height: 100%;
+    border-radius: 2px;
+    background: var(--tp-accent);
+}
+
+.tp-play {
+    flex: 0 0 9px;
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--tp-accent);
 }

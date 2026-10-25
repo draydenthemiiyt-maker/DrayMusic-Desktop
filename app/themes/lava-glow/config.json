@@ -1,0 +1,8 @@
+{
+    "name": "Lava Glow",
+    "author": "DrayMusic",
+    "version": "1.0.0",
+    "description": "The Lava Glow theme.",
+    "stylesheet": "css/style.css",
+    "order": 14
+}

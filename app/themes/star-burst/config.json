@@ -1,0 +1,8 @@
+{
+    "name": "Star Burst",
+    "author": "DrayMusic",
+    "version": "1.0.0",
+    "description": "The Star Burst theme.",
+    "stylesheet": "css/style.css",
+    "order": 15
+}

@@ -1,0 +1,8 @@
+{
+    "name": "Pixel Pop",
+    "author": "DrayMusic",
+    "version": "1.0.0",
+    "description": "The Pixel Pop theme.",
+    "stylesheet": "css/style.css",
+    "order": 16
+}

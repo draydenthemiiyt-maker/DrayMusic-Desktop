@@ -1,0 +1,8 @@
+{
+    "name": "Super Charge",
+    "author": "DrayMusic",
+    "version": "1.0.0",
+    "description": "The Super Charge theme.",
+    "stylesheet": "css/style.css",
+    "order": 12
+}

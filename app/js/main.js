@@ -78,7 +78,13 @@ var DOM = {
     centerGainSlider: document.getElementById('centerGainSlider'),
     echoTimeSlider: document.getElementById('echoTimeSlider'),
     echoFeedbackSlider: document.getElementById('echoFeedbackSlider'),
-    echoMixSlider: document.getElementById('echoMixSlider')
+    echoMixSlider: document.getElementById('echoMixSlider'),
+    lyricsPane: document.getElementById('lyricsPane'),
+    lyricsFab: document.getElementById('lyricsFab'),
+    btnCloseLyrics: document.getElementById('btnCloseLyrics'),
+    lyricsBody: document.getElementById('lyricsBody'),
+    lyricsText: document.getElementById('lyricsText'),
+    lyricsSong: document.getElementById('lyricsSong')
 };
 
 window.audio = DOM.audio;
@@ -111,6 +117,10 @@ var midGainNode, sideGainNode;
 var echoDelayNode, echoFeedbackNode, echoWetGainNode;
 var analyser = null;
 var offlineDB = null;
+var lyricsAvailable = false;
+var lyricsCollapsed = localStorage.getItem('drayLyricsCollapsed') === 'true';
+var lyricsRequestId = 0;
+var lyricsCache = {};
 
             var maxBtn = document.getElementById('max-btn');
             var windowApi = window.api;
@@ -232,6 +242,7 @@ function syncSongOffline(songUrl) {
                 record.artist = song.artist;
                 record.art = song.art;
                 record.copyrighted = song.copyrighted;
+                record.lyrics = song.lyrics || '';
             }
             var updateTx = offlineDB.transaction(['songs'], 'readwrite');
             updateTx.objectStore('songs').put(record);
@@ -247,6 +258,7 @@ function syncSongOffline(songUrl) {
                         artist: song.artist,
                         art: song.art,
                         copyrighted: song.copyrighted,
+                        lyrics: song.lyrics || '',
                         favorite: isFav,
                         playlists: containingPlaylists,
                         blob: blob
@@ -498,7 +510,6 @@ function updateTrackArtwork(song) {
             artworkElements[i].classList.add('art-loading');
         }
     }
-    applyDynamicAccent(fallbackArt);
 
     var artUrl = song.art || fallbackArt;
     if (artUrl === 'placeholder.png' || artUrl === fallbackArt) {
@@ -513,7 +524,6 @@ function updateTrackArtwork(song) {
             artworkElements[j].src = artUrl;
             artworkElements[j].classList.remove('art-loading');
         }
-        applyDynamicAccent(artUrl);
     };
     image.onerror = function () {
         if (requestId !== artworkRequestId) return;
@@ -561,6 +571,74 @@ function preloadNextQueueItem() {
     }
 }
 
+function applyLyricsState() {
+    var showPane = lyricsAvailable && !lyricsCollapsed;
+    var showFab = lyricsAvailable && lyricsCollapsed;
+    if (DOM.lyricsPane) {
+        DOM.lyricsPane.classList.toggle('show', showPane);
+        DOM.lyricsPane.setAttribute('aria-hidden', String(!showPane));
+    }
+    if (DOM.lyricsFab) {
+        DOM.lyricsFab.classList.toggle('show', showFab);
+        DOM.lyricsFab.tabIndex = showFab ? 0 : -1;
+    }
+}
+
+function setLyricsCollapsed(collapsed) {
+    lyricsCollapsed = !!collapsed;
+    localStorage.setItem('drayLyricsCollapsed', String(lyricsCollapsed));
+    applyLyricsState();
+}
+
+function showLyricsText(text, isStatus) {
+    if (!DOM.lyricsText) return;
+    DOM.lyricsText.textContent = text;
+    DOM.lyricsText.classList.toggle('lyrics-status', !!isStatus);
+    if (DOM.lyricsBody) DOM.lyricsBody.scrollTop = 0;
+}
+
+function updateLyricsForSong(song) {
+    var requestId = ++lyricsRequestId;
+    var lyricsUrl = song && song.lyrics ? song.lyrics : '';
+
+    lyricsAvailable = !!lyricsUrl;
+    applyLyricsState();
+
+    if (!lyricsUrl) {
+        showLyricsText('', false);
+        if (DOM.lyricsSong) DOM.lyricsSong.textContent = '';
+        return;
+    }
+
+    if (DOM.lyricsSong) DOM.lyricsSong.textContent = song.title || '';
+
+    if (Object.prototype.hasOwnProperty.call(lyricsCache, lyricsUrl)) {
+        showLyricsText(lyricsCache[lyricsUrl], false);
+        return;
+    }
+
+    showLyricsText('Loading lyrics\u2026', true);
+    fetch(lyricsUrl).then(function (response) {
+        if (!response.ok) throw new Error('Lyrics request failed: ' + response.status);
+        return response.text();
+    }).then(function (text) {
+        text = String(text || '').replace(/\r\n?/g, '\n').trim();
+        lyricsCache[lyricsUrl] = text;
+        if (requestId !== lyricsRequestId) return;
+        showLyricsText(text || 'No lyrics found.', !text);
+    })['catch'](function (error) {
+        console.warn('Lyrics load failed:', error);
+        if (requestId !== lyricsRequestId) return;
+        showLyricsText("Couldn't load the lyrics.", true);
+    });
+}
+
+function bindLyricsEvents() {
+    if (DOM.btnCloseLyrics) DOM.btnCloseLyrics.addEventListener('click', function () { setLyricsCollapsed(true); });
+    if (DOM.lyricsFab) DOM.lyricsFab.addEventListener('click', function () { setLyricsCollapsed(false); });
+    applyLyricsState();
+}
+
 function playSong(index, shouldPlay) {
     if (!DOM.audio || currentPlaylist.length === 0) return;
 
@@ -586,6 +664,7 @@ function playSong(index, shouldPlay) {
     if (DOM.currentTitle) DOM.currentTitle.textContent = song.title;
     if (DOM.currentArtist) DOM.currentArtist.textContent = song.artist;
     updateTrackArtwork(song);
+    updateLyricsForSong(song);
     var playPauseIcon = shouldPlay === false ? 'play_arrow' : 'pause';
     if (DOM.btnPlayPause) DOM.btnPlayPause.innerHTML = '<span class="material-symbols-rounded">' + playPauseIcon + '</span>';
     if (DOM.btnFavorite) {
@@ -660,7 +739,8 @@ function loadMusic() {
                     artist: getT('artist') || 'Unknown Artist',
                     url: getT('url') || '',
                     art: getT('albumArt') || 'assets/icon.png',
-                    copyrighted: getT('copyrighted').trim().toLowerCase()
+                    copyrighted: getT('copyrighted').trim().toLowerCase(),
+                    lyrics: getT('lyrics').trim()
                 });
             }
 
@@ -999,6 +1079,7 @@ function goToPage(index) {
     updateSidebarSelection(index);
     if (index === 1) renderFavorites();
     if (index === 2) renderPlaylists();
+    if (index === 3 && window.DrayThemes) window.DrayThemes.refresh();
     return true;
 }
 
@@ -1859,7 +1940,8 @@ function loadOfflineSongs(callback) {
                 url: r.url,
                 blobUrl: blobUrl,
                 art: r.art,
-                copyrighted: r.copyrighted || ''
+                copyrighted: r.copyrighted || '',
+                lyrics: r.lyrics || ''
             };
         });
 
@@ -1882,27 +1964,6 @@ function bootMusic() {
         }
     });
 }
-
-(function detectSamsungExperience() {
-    var ua = navigator.userAgent;
-    var isAndroid = ua.indexOf('Android') !== -1;
-    var isSamsungDevice = (ua.indexOf('SAMSUNG') !== -1 || ua.indexOf('Samsung') !== -1 || ua.indexOf('SM-') !== -1);
-    if (isAndroid && isSamsungDevice) {
-        var match = ua.match(/Android\s([0-9\.]+)/);
-        if (match && match[1]) {
-            var version = parseFloat(match[1]);
-            if (version >= 7.0 && version <= 8.1) {
-                if (document.body) {
-                    document.body.classList.add('SamsungExperience');
-                } else {
-                    document.addEventListener('DOMContentLoaded', function () {
-                        document.body.classList.add('SamsungExperience');
-                    });
-                }
-            }
-        }
-    }
-})();
 
 (function () {
     var menu = document.getElementById('contextMenu');
@@ -1957,57 +2018,5 @@ restoreSidebarState();
 renderSidebarPlaylists();
 goToPage(0);
 bindEvents();
+bindLyricsEvents();
 bootMusic();
-
-function applyDynamicAccent(imageSrc) {
-    if (!imageSrc || imageSrc.indexOf('assets/icon.png') !== -1) {
-        document.documentElement.style.setProperty('--song-accent', '#00a0ff');
-        return;
-    }
-
-    var img = new Image();
-    img.crossOrigin = "Anonymous"; 
-    img.src = imageSrc;
-
-    img.onload = function() {
-        var canvas = document.createElement('canvas');
-        var ctx = canvas.getContext('2d');
-        canvas.width = img.width;
-        canvas.height = img.height;
-
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-
-        try {
-            var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            var data = imageData.data;
-            var r = 0, g = 0, b = 0;
-            var count = 0;
-            var step = 4 * 10;
-
-            for (var i = 0; i < data.length; i += step) {
-                if ((data[i] > 250 && data[i+1] > 250 && data[i+2] > 250) || 
-                    (data[i] < 15 && data[i+1] < 15 && data[i+2] < 15)) {
-                    continue;
-                }
-                
-                r += data[i];
-                g += data[i + 1];
-                b += data[i + 2];
-                count++;
-            }
-
-            if (count > 0) {
-                r = Math.floor(r / count);
-                g = Math.floor(g / count);
-                b = Math.floor(b / count);
-                
-                document.documentElement.style.setProperty('--song-accent', 'rgb(' + r + ', ' + g + ', ' + b + ')');
-            } else {
-                document.documentElement.style.setProperty('--song-accent', '#00a0ff');
-            }
-        } catch (e) {
-            console.warn("CORS prevented color extraction. Using default accent.");
-            document.documentElement.style.setProperty('--song-accent', '#00a0ff');
-        }
-    };
-}

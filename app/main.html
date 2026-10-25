@@ -3,22 +3,47 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <!-- What is this bullshit -->
     <meta charset="UTF-8">
+    
+    <!-- I have to add this shit to stop the user from zooming into the app for god sake -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <link rel="icon" type="image/png" href="assets/icon.png">
-    <title>DrayMusic</title>
-    <link rel="stylesheet" href="css/main.css">
 
+    <!-- It's not like anyone is going to see this icon anyway, it's not a website, bruh i will keep it here anyway -->
+    <link rel="icon" type="image/png" href="assets/icon.png">
+
+    <!-- Just like the icon above me nobody will see me, But i will just stay hidden in this code shush -->
+    <title>DrayMusic</title>
+
+    <!-- Link the stylesheets -->
+    <link rel="stylesheet" href="css/main.css">
     <link rel="stylesheet" href="css/draystylepack.css">
     <link href="assets/google.css" rel="stylesheet">
+
+    <!-- This one is for the users theme -->
+    <link rel="stylesheet" id="themeStylesheet">
+
+    <!-- Just a script (yes it's inline don't get mad) -->
+    <script>
+        (function () {
+            try {
+                var href = localStorage.getItem('drayThemeHref');
+                if (href) document.getElementById('themeStylesheet').setAttribute('href', href);
+            } catch (e) {}
+        })();
+    </script>
 </head>
 <body>
+    <!-- Heres the titlebar, It is a replacement for the native Win32 titlebar as it looks ass -->
     <div class="titlebar">
         <div class="titlebar-left">
             <img src="assets/icon.png">
             <h1>DrayMusic</h1>
         </div>
+        <!-- Some gay search bar -->
         <input type="text" id="searchInput" placeholder="Search">
+
+        <!-- Windows buttons, sorry macos not yet -->
         <div class="titlebar-right">
             <button id="min-btn" class="titlebar-btn">&#xE921;</button>
             <button id="max-btn" class="titlebar-btn">&#xE922;</button>
@@ -41,9 +66,13 @@
                 <button class="sidebar-link" data-page="1" title="Favorites">
                     <span class="material-symbols-rounded">favorite</span><span class="sidebar-label">Favorites</span>
                 </button>
+
+                <!-- Don't look at me, Look at the button below me -->
                 <button class="sidebar-link" data-page="3" title="Settings">
                     <span class="material-symbols-rounded">settings</span><span class="sidebar-label">Settings</span>
                 </button>
+
+                <!-- Don't look at me, Look at the button above me -->
 <button class="sidebar-link" data-page="666" title="Create" onclick="window.open('https://draymusic-private.onrender.com')">
     <span class="material-symbols-rounded">add_circle</span><span class="sidebar-label">Create</span>
 </button>
@@ -72,21 +101,34 @@
                 </section>
 
                 <section class="page" id="equalizerPage">
-                    <div class="page-title-header"><h2>Audio Settings</h2></div>
+                    <div class="page-title-header"><h2>Settings</h2></div>
                     <div class="eq-page-content">
+                        <div class="control-group themes-group">
+                            <div class="themes-header">
+                                <h3>Themes</h3>
+                                <!-- Can't wait to see what themes you make for DrayMusic! -->
+                                <button id="btnOpenThemesFolder" class="themes-folder-btn" type="button" title="Open your DrayMusic Themes folder">
+                                    <span class="material-symbols-rounded">folder_open</span>Open themes folder
+                                </button>
+                            </div>
+                            <p id="themesHint" class="themes-hint">Pick a theme for DrayMusic.</p>
+                            <div id="themesGrid" class="themes-grid"></div>
+                        </div>
+
                         <div class="control-group">
                             <h3>Equalizer</h3>
                             <div class="eq-sliders 10-band">
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider0" min="-12" max="12" value="0"><label>31</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider1" min="-12" max="12" value="0"><label>62</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider2" min="-12" max="12" value="0"><label>125</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider3" min="-12" max="12" value="0"><label>250</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider4" min="-12" max="12" value="0"><label>500</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider5" min="-12" max="12" value="0"><label>1k</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider6" min="-12" max="12" value="0"><label>2k</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider7" min="-12" max="12" value="0"><label>4k</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider8" min="-12" max="12" value="0"><label>8k</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider9" min="-12" max="12" value="0"><label>16k</label></div>
+                                <!-- What you lookin at? Can you make yourself useful and join the DraydenYT Discord server and sub on youtube? -->
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider0" min="-12" max="12" step="any" value="0"><label>31</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider1" min="-12" max="12" step="any" value="0"><label>62</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider2" min="-12" max="12" step="any" value="0"><label>125</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider3" min="-12" max="12" step="any" value="0"><label>250</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider4" min="-12" max="12" step="any" value="0"><label>500</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider5" min="-12" max="12" step="any" value="0"><label>1k</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider6" min="-12" max="12" step="any" value="0"><label>2k</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider7" min="-12" max="12" step="any" value="0"><label>4k</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider8" min="-12" max="12" step="any" value="0"><label>8k</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider9" min="-12" max="12" step="any" value="0"><label>16k</label></div>
                             </div>
                         </div>
 
@@ -94,7 +136,7 @@
                             <h3>Playback</h3>
                             <div class="slider-row">
                                 <label>Speed</label>
-                                <input type="range" id="speedSlider" min="0.1" max="5" step="0.0000000001" value="1">
+                                <input type="range" id="speedSlider" min="0.1" max="5" step="any" value="1">
                                 <span id="speedLabel">1.00x</span>
                             </div>
                             <div class="toggle-row">
@@ -109,24 +151,25 @@
                             <h3>Reverb</h3>
                             <div class="slider-row">
                                 <label>Dry</label>
-                                <input type="range" id="drySlider" min="0" max="1" step="0.0000000001" value="1">
+                                <input type="range" id="drySlider" min="0" max="1" step="any" value="1">
                             </div>
                             <div class="slider-row">
                                 <label>Wet</label>
-                                <input type="range" id="wetSlider" min="0" max="1" step="0.0000000001" value="0">
+                                <input type="range" id="wetSlider" min="0" max="1" step="any" value="0">
                             </div>
                         </div>
 
+                        <!-- God this was hard, when i first addded this it destorts the music -->
                         <div class="control-group">
                             <h3>Isolation</h3>
                             <div class="slider-row">
                                 <label>Stereo</label>
-                                <input type="range" id="stereoWidthSlider" min="0" max="1" step="0.0000000001" value="0.5">
+                                <input type="range" id="stereoWidthSlider" min="0" max="1" step="any" value="0.5">
                                 <span id="stereoWidthLabel">0.50</span>
                             </div>
                             <div class="slider-row">
                                 <label>Center</label>
-                                <input type="range" id="centerGainSlider" min="0" max="1" step="0.0000000001" value="0.5">
+                                <input type="range" id="centerGainSlider" min="0" max="1" step="any" value="0.5">
                                 <span id="centerGainLabel">0.50</span>
                             </div>
                         </div>
@@ -135,17 +178,17 @@
                             <h3>Echo</h3>
                             <div class="slider-row">
                                 <label>Time</label>
-                                <input type="range" id="echoTimeSlider" min="0.02" max="1" step="0.0000000001" value="0.3">
+                                <input type="range" id="echoTimeSlider" min="0.02" max="1" step="any" value="0.3">
                                 <span id="echoTimeLabel">0.30s</span>
                             </div>
                             <div class="slider-row">
                                 <label>Feedback</label>
-                                <input type="range" id="echoFeedbackSlider" min="0" max="0.9" step="0.0000000001" value="0.3">
+                                <input type="range" id="echoFeedbackSlider" min="0" max="0.9" step="any" value="0.3">
                                 <span id="echoFeedbackLabel">0.30</span>
                             </div>
                             <div class="slider-row">
                                 <label>Mix</label>
-                                <input type="range" id="echoMixSlider" min="0" max="1" step="0.0000000001" value="0">
+                                <input type="range" id="echoMixSlider" min="0" max="1" step="any" value="0">
                                 <span id="echoMixLabel">0.00</span>
                             </div>
                         </div>
@@ -203,13 +246,14 @@
             <div id="openNowPlaying" class="player-left">
                 <img id="currentArt" src="assets/icon.png" alt="Album Art">
                 <div class="now-playing">
+                    <!-- Dear user just play a song! -->
                     <h4 id="currentTitle">Not Playing</h4>
                     <p id="currentArtist">Select a song</p>
                 </div>
             </div>
 
             <div class="player-main">
-                <input type="range" id="seekBar" value="0" step="0.0000000001">
+                <input type="range" id="seekBar" value="0" step="any">
                 <button id="btnFavorite" class="icon-btn wigdisable" disabled><span class="material-symbols-rounded">star</span></button>
                 <button id="btnPrev" class="icon-btn"><span class="material-symbols-rounded">skip_previous</span></button>
                 <button id="btnPlayPause" class="icon-btn"><span class="material-symbols-rounded">play_arrow</span></button>
@@ -225,11 +269,10 @@
 
     <div id="nowplayingPane" class="side-pane" style="top: 0; bottom: 0; z-index: 99999; -webkit-app-region: no-drag;">
         <img id="nowplayingArtBackground" class="player-art" src="assets/icon.png">
-        <div class="pane-header">
-            <button id="btnCloseNowPlaying" class="icon-btn"><span class="material-symbols-rounded">close</span></button>
-        </div>
 
 <div class="pane-content" style="display: flex; align-items: center; justify-content: center; gap: 30px;">
+    <button id="btnCloseNowPlaying" class="icon-btn" style="position: absolute;top: 0;left: 0;margin: 20px;"><span class="material-symbols-rounded">close</span></button>
+    
     <img id="nowplayingArt" src="assets/icon.png" alt="Album Art">
     
     <div class="nowplaying-info">
@@ -239,7 +282,7 @@
         </div>
 
         <div class="nowplaying-controls">
-            <input type="range" id="seekBarNowPlaying" value="0" step="0.0000000001">
+            <input type="range" id="seekBarNowPlaying" value="0" step="any">
             <div class="button-group">
                 <button id="btnPrevNowPlaying" class="icon-btn"><span class="material-symbols-rounded">skip_previous</span></button>
                 <button id="btnPlayPauseNowPlaying" class="icon-btn"><span class="material-symbols-rounded">play_arrow</span></button>
@@ -250,8 +293,11 @@
 </div>
     </div>
     
+    <!-- Yo code explorer nice to see you in here, You have found the audio element! -->
     <audio id="audioElement" crossorigin="anonymous"></audio>
 
+    <!-- Scripts? Check! -->
+    <script src="js/themes.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

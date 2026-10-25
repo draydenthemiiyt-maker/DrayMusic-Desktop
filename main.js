@@ -2,8 +2,17 @@
 
 const { app, BrowserWindow, ipcMain, shell } = require('electron');
 const path = require('path');
+const fs = require('fs');
+const os = require('os');
+const { pathToFileURL } = require('url');
 const RPC = require('discord-rpc');
 const gotTheLock = app.requestSingleInstanceLock();
+const isLegacyWin = (() => {
+    if (process.platform !== 'win32') return false;
+    const release = os.release();
+    const parts = release.split('.').map(Number);
+    return parts[0] < 10;
+})();
 
 if (!gotTheLock) {
     app.quit();
@@ -85,19 +94,119 @@ function initDiscordRPC() {
     rpcClient.login({ clientId }).catch(console.error);
 }
 
+const BUILTIN_THEMES_DIR = path.join(__dirname, 'app', 'themes');
+
+function getUserThemesDir() {
+    return path.join(app.getPath('documents'), 'DrayMusic Themes');
+}
+
+function ensureUserThemesDir() {
+    const dir = getUserThemesDir();
+    try {
+        fs.mkdirSync(dir, { recursive: true });
+    } catch (e) {
+        console.error('Could not create the DrayMusic Themes folder:', e);
+    }
+    return dir;
+}
+
+function resolveInsideTheme(themeDir, relativePath) {
+    if (typeof relativePath !== 'string' || !relativePath.trim()) return null;
+    const fullPath = path.resolve(themeDir, relativePath);
+    const relative = path.relative(themeDir, fullPath);
+    if (!relative || relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) return null;
+    return fullPath;
+}
+
+function cleanString(value, maxLength) {
+    return typeof value === 'string' ? value.trim().slice(0, maxLength) : '';
+}
+
+function readThemesFrom(rootDir, source) {
+    const themes = [];
+    let folders;
+    try {
+        folders = fs.readdirSync(rootDir);
+    } catch (e) {
+        return themes;
+    }
+
+    for (const folder of folders) {
+        const themeDir = path.join(rootDir, folder);
+        let config;
+        try {
+            if (!fs.statSync(themeDir).isDirectory()) continue;
+            const raw = fs.readFileSync(path.join(themeDir, 'config.json'), 'utf8').replace(/^\uFEFF/, '');
+            config = JSON.parse(raw);
+        } catch (e) {
+            continue;
+        }
+        if (!config || typeof config !== 'object') continue;
+
+        const cssPath = resolveInsideTheme(themeDir, config.stylesheet);
+        if (!cssPath || path.extname(cssPath).toLowerCase() !== '.css') continue;
+
+        let cssStat;
+        try {
+            cssStat = fs.statSync(cssPath);
+            if (!cssStat.isFile()) continue;
+        } catch (e) {
+            continue;
+        }
+
+        let css = '';
+        if (cssStat.size <= 1024 * 1024) {
+            try { css = fs.readFileSync(cssPath, 'utf8'); } catch (e) {}
+        }
+
+        let previewUrl = null;
+        const previewPath = resolveInsideTheme(themeDir, config.preview);
+        if (previewPath) {
+            try {
+                if (fs.statSync(previewPath).isFile()) previewUrl = pathToFileURL(previewPath).href;
+            } catch (e) {}
+        }
+
+        themes.push({
+            id: source + ':' + folder,
+            source: source,
+            folder: folder,
+            name: cleanString(config.name, 60) || folder,
+            author: cleanString(config.author, 60) || 'Unknown',
+            version: cleanString(config.version, 20),
+            description: cleanString(config.description, 200),
+            order: Number.isFinite(config.order) ? config.order : 1000,
+            href: pathToFileURL(cssPath).href + '?v=' + Math.round(cssStat.mtimeMs),
+            preview: previewUrl,
+            css: css
+        });
+    }
+
+    return themes.sort((a, b) => (a.order - b.order) || a.name.localeCompare(b.name));
+}
+
+ipcMain.handle('themes:list', () => {
+    const userDir = ensureUserThemesDir();
+    return {
+        userThemesDir: userDir,
+        themes: readThemesFrom(BUILTIN_THEMES_DIR, 'builtin').concat(readThemesFrom(userDir, 'user'))
+    };
+});
+
+ipcMain.handle('themes:openFolder', () => shell.openPath(ensureUserThemesDir()));
+
 function createWindow() {
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
         minWidth: 632,
         minHeight: 123,
-        frame: false,
+        frame: isLegacyWin,
         autoHideMenuBar: true,
         resizable: true,
         show: false,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js'),
-            webviewTag: true
+            preload: path.join(__dirname, 'preload.js')
         }
     });
 
@@ -119,7 +228,12 @@ function createWindow() {
     win.on('unmaximize', () => win.webContents.send('window:unmaximized'));
     
     win.webContents.on('did-finish-load', () => {
-        try { win.show(); } catch (e) {}
+        if (isLegacyWin) {
+            win.webContents.executeJavaScript(`document.documentElement.classList.add('legacy-platform');`).catch(() => {});
+        }
+        setTimeout(() => {
+            try { win.show(); } catch (e) {}
+        }, 500);
     });
 }
 
@@ -136,6 +250,7 @@ ipcMain.on('clear-discord-rpc', () => {
 });
 
 app.whenReady().then(() => {
+    ensureUserThemesDir();
     createWindow();
     initDiscordRPC();
 });
