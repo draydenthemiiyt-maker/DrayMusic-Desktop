@@ -12,7 +12,7 @@
     <!-- It's not like anyone is going to see this icon anyway, it's not a website, bruh i will keep it here anyway -->
     <link rel="icon" type="image/png" href="assets/icon.png">
 
-    <!-- Just like the icon above me nobody will see me, But i will just stay hidden in this code shush -->
+    <!-- Just like the icon above me nobody will see me, But i will just stay hidden in this code and nobody will ever know -->
     <title>DrayMusic</title>
 
     <!-- Link the stylesheets -->
@@ -33,7 +33,7 @@
         })();
     </script>
 </head>
-<body>
+<body class="no-song">
     <!-- Heres the titlebar, It is a replacement for the native Win32 titlebar as it looks ass -->
     <div class="titlebar">
         <div class="titlebar-left">
@@ -103,6 +103,25 @@
                 <section class="page" id="equalizerPage">
                     <div class="page-title-header"><h2>Settings</h2></div>
                     <div class="eq-page-content">
+                        <div class="control-group">
+                            <h3>Appearance &amp; behavior</h3>
+                            <div class="settings-option-row">
+                                <label for="colorModeSelect">Color mode</label>
+                                <select id="colorModeSelect" class="settings-select">
+                                    <option value="system">System</option>
+                                    <option value="light">Light</option>
+                                    <option value="dark">Dark</option>
+                                </select>
+                            </div>
+                            <div class="settings-option-row">
+                                <label class="settings-switch">
+                                    <input type="checkbox" id="closeToTrayToggle" checked>
+                                    <span class="settings-switch-track" aria-hidden="true"></span>
+                                    <span>Keep song playing in the system tray when closing the app</span>
+                                </label>
+                            </div>
+                        </div>
+
                         <div class="control-group themes-group">
                             <div class="themes-header">
                                 <h3>Themes</h3>
@@ -116,19 +135,24 @@
                         </div>
 
                         <div class="control-group">
+                            <h3>Audio effects</h3>
+                            <button id="btnResetEq" type="button">Reset effects to defaults</button>
+                        </div>
+
+                        <div class="control-group">
                             <h3>Equalizer</h3>
                             <div class="eq-sliders 10-band">
                                 <!-- What you lookin at? Can you make yourself useful and join the DraydenYT Discord server and sub on youtube? -->
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider0" min="-12" max="12" step="any" value="0"><label>31</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider1" min="-12" max="12" step="any" value="0"><label>62</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider2" min="-12" max="12" step="any" value="0"><label>125</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider3" min="-12" max="12" step="any" value="0"><label>250</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider4" min="-12" max="12" step="any" value="0"><label>500</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider5" min="-12" max="12" step="any" value="0"><label>1k</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider6" min="-12" max="12" step="any" value="0"><label>2k</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider7" min="-12" max="12" step="any" value="0"><label>4k</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider8" min="-12" max="12" step="any" value="0"><label>8k</label></div>
-                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider9" min="-12" max="12" step="any" value="0"><label>16k</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider0" min="-12" max="12" step="any" value="0"><span class="eq-percent" id="eqPercent0">50%</span><label>31</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider1" min="-12" max="12" step="any" value="0"><span class="eq-percent" id="eqPercent1">50%</span><label>62</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider2" min="-12" max="12" step="any" value="0"><span class="eq-percent" id="eqPercent2">50%</span><label>125</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider3" min="-12" max="12" step="any" value="0"><span class="eq-percent" id="eqPercent3">50%</span><label>250</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider4" min="-12" max="12" step="any" value="0"><span class="eq-percent" id="eqPercent4">50%</span><label>500</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider5" min="-12" max="12" step="any" value="0"><span class="eq-percent" id="eqPercent5">50%</span><label>1k</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider6" min="-12" max="12" step="any" value="0"><span class="eq-percent" id="eqPercent6">50%</span><label>2k</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider7" min="-12" max="12" step="any" value="0"><span class="eq-percent" id="eqPercent7">50%</span><label>4k</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider8" min="-12" max="12" step="any" value="0"><span class="eq-percent" id="eqPercent8">50%</span><label>8k</label></div>
+                                <div class="eq-slider-col"><input type="range" class="eq-slider" id="eqSlider9" min="-12" max="12" step="any" value="0"><span class="eq-percent" id="eqPercent9">50%</span><label>16k</label></div>
                             </div>
                         </div>
 
@@ -152,10 +176,12 @@
                             <div class="slider-row">
                                 <label>Dry</label>
                                 <input type="range" id="drySlider" min="0" max="1" step="any" value="1">
+                                <span class="slider-percent" id="dryPercent">100%</span>
                             </div>
                             <div class="slider-row">
                                 <label>Wet</label>
                                 <input type="range" id="wetSlider" min="0" max="1" step="any" value="0">
+                                <span class="slider-percent" id="wetPercent">0%</span>
                             </div>
                         </div>
 
@@ -246,14 +272,18 @@
             <div id="openNowPlaying" class="player-left">
                 <img id="currentArt" src="assets/icon.png" alt="Album Art">
                 <div class="now-playing">
-                    <!-- Dear user just play a song! -->
-                    <h4 id="currentTitle">Not Playing</h4>
-                    <p id="currentArtist">Select a song</p>
+                    <!-- Dear user just play a song and we will fill in the infos! -->
+                    <h4 id="currentTitle"></h4>
+                    <p id="currentArtist"></p>
                 </div>
             </div>
 
             <div class="player-main">
-                <input type="range" id="seekBar" value="0" step="any">
+                <div class="seek-control">
+                    <span id="currentTimeLabel" class="seek-time">0:00</span>
+                    <input type="range" id="seekBar" value="0" step="any" aria-label="Seek through song">
+                    <span id="totalTimeLabel" class="seek-time">0:00</span>
+                </div>
                 <button id="btnFavorite" class="icon-btn wigdisable" disabled><span class="material-symbols-rounded">star</span></button>
                 <button id="btnPrev" class="icon-btn"><span class="material-symbols-rounded">skip_previous</span></button>
                 <button id="btnPlayPause" class="icon-btn"><span class="material-symbols-rounded">play_arrow</span></button>
@@ -264,6 +294,16 @@
             <div class="player-right">
                 <button id="btnAddToPlaylist" class="icon-btn" aria-label="Add playing song to playlist" title="Add to playlist" disabled><span class="material-symbols-rounded">playlist_add</span></button>
                 <button id="btnDownloadSong" class="icon-btn" aria-label="Download playing song" title="Download song" disabled><span class="material-symbols-rounded">download</span></button>
+                <button id="btnStop" class="icon-btn" type="button" aria-label="Stop playback" title="Stop playback" disabled><span class="material-symbols-rounded">stop</span></button>
+                <div class="volume-control" id="volumeControl">
+                    <div class="volume-popover">
+                        <label for="masterVolumeSlider">Volume <span id="masterVolumePercent">100%</span></label>
+                        <input type="range" id="masterVolumeSlider" min="0" max="1" step="0.01" value="1" aria-label="Master volume">
+                    </div>
+                    <button id="btnVolume" class="icon-btn" type="button" aria-label="Mute" title="Mute">
+                        <span class="material-symbols-rounded">volume_up</span>
+                    </button>
+                </div>
             </div>
         </div>
 
@@ -282,7 +322,11 @@
         </div>
 
         <div class="nowplaying-controls">
-            <input type="range" id="seekBarNowPlaying" value="0" step="any">
+            <div class="seek-control nowplaying-seek-control">
+                <span id="currentTimeNowPlayingLabel" class="seek-time">0:00</span>
+                <input type="range" id="seekBarNowPlaying" value="0" step="any" aria-label="Seek through song">
+                <span id="totalTimeNowPlayingLabel" class="seek-time">0:00</span>
+            </div>
             <div class="button-group">
                 <button id="btnPrevNowPlaying" class="icon-btn"><span class="material-symbols-rounded">skip_previous</span></button>
                 <button id="btnPlayPauseNowPlaying" class="icon-btn"><span class="material-symbols-rounded">play_arrow</span></button>

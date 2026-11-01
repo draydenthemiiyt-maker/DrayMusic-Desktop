@@ -10,6 +10,8 @@ With DrayMusic Desktop, You can listen to your favourite songs - Right from your
 
 DrayMusic has been rebuilt from the ground up to provide a great user experience on Windows
 
+The desktop app requires Windows 10 or later. To build it from source, install Node.js 22.12.0 or later.
+
 Contribute to the Project/Business Contact:
 
 Discord: @DraydenYT

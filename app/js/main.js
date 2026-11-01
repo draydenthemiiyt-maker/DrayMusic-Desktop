@@ -2,8 +2,43 @@
 
 var systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
+window.addEventListener('wheel', function (event) {
+    if (event.ctrlKey) event.preventDefault();
+}, { capture: true, passive: false });
+
+function getColorModePreference() {
+    try {
+        var mode = localStorage.getItem('drayColorMode');
+        return mode === 'light' || mode === 'dark' ? mode : 'system';
+    } catch (e) {
+        return 'system';
+    }
+}
+
+function formatTrackTime(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) seconds = 0;
+    seconds = Math.floor(seconds);
+    var hours = Math.floor(seconds / 3600);
+    var minutes = Math.floor((seconds % 3600) / 60);
+    var remainingSeconds = seconds % 60;
+    if (hours > 0) {
+        return hours + ':' + String(minutes).padStart(2, '0') + ':' + String(remainingSeconds).padStart(2, '0');
+    }
+    return minutes + ':' + String(remainingSeconds).padStart(2, '0');
+}
+
+function updateTrackTimeLabels(currentTime, duration) {
+    var current = formatTrackTime(currentTime);
+    var total = formatTrackTime(duration);
+    if (DOM.currentTimeLabel) DOM.currentTimeLabel.textContent = current;
+    if (DOM.totalTimeLabel) DOM.totalTimeLabel.textContent = total;
+    if (DOM.currentTimeNowPlayingLabel) DOM.currentTimeNowPlayingLabel.textContent = current;
+    if (DOM.totalTimeNowPlayingLabel) DOM.totalTimeNowPlayingLabel.textContent = total;
+}
+
 function updateSystemThemeClass(event) {
-    var isDark = event.matches;
+    var mode = getColorModePreference();
+    var isDark = mode === 'system' ? event.matches : mode === 'dark';
     document.documentElement.classList.toggle('dark', isDark);
     document.documentElement.classList.toggle('light', !isDark);
 }
@@ -59,6 +94,14 @@ var DOM = {
     btnFavorite: document.getElementById('btnFavorite'),
     btnAddToPlaylist: document.getElementById('btnAddToPlaylist'),
     btnDownloadSong: document.getElementById('btnDownloadSong'),
+    btnStop: document.getElementById('btnStop'),
+    masterVolumeSlider: document.getElementById('masterVolumeSlider'),
+    btnVolume: document.getElementById('btnVolume'),
+    masterVolumePercent: document.getElementById('masterVolumePercent'),
+    currentTimeLabel: document.getElementById('currentTimeLabel'),
+    totalTimeLabel: document.getElementById('totalTimeLabel'),
+    currentTimeNowPlayingLabel: document.getElementById('currentTimeNowPlayingLabel'),
+    totalTimeNowPlayingLabel: document.getElementById('totalTimeNowPlayingLabel'),
     contextPlayerOptions: document.getElementById('contextPlayerOptions'),
     menuBtnLoop: document.getElementById('menuBtnLoop'),
     menuBtnEQ: document.getElementById('menuBtnEQ'),
@@ -84,14 +127,30 @@ var DOM = {
     btnCloseLyrics: document.getElementById('btnCloseLyrics'),
     lyricsBody: document.getElementById('lyricsBody'),
     lyricsText: document.getElementById('lyricsText'),
-    lyricsSong: document.getElementById('lyricsSong')
+    lyricsSong: document.getElementById('lyricsSong'),
+    nowplayingArtBackground: document.getElementById('nowplayingArtBackground'),
+    colorModeSelect: document.getElementById('colorModeSelect'),
+    closeToTrayToggle: document.getElementById('closeToTrayToggle')
 };
+
+if (DOM.colorModeSelect) DOM.colorModeSelect.value = getColorModePreference();
+if (DOM.closeToTrayToggle) {
+    try {
+        DOM.closeToTrayToggle.checked = localStorage.getItem('drayCloseToTray') !== 'false';
+    } catch (e) {
+        DOM.closeToTrayToggle.checked = true;
+    }
+    if (window.api && window.api.setCloseToTray) {
+        window.api.setCloseToTray(DOM.closeToTrayToggle.checked);
+    }
+}
 
 window.audio = DOM.audio;
 
 var allSongs = [];
 var currentPlaylist = [];
 var currentIndex = -1;
+var lastDiscordSongUrl = null;
 var playbackRequested = false;
 var isLooping = false;
 var pendingSeekPercent = null;
@@ -121,9 +180,39 @@ var lyricsAvailable = false;
 var lyricsCollapsed = localStorage.getItem('drayLyricsCollapsed') === 'true';
 var lyricsRequestId = 0;
 var lyricsCache = {};
+var lastMasterVolume = 1;
+var isAudioMuted = false;
 
             var maxBtn = document.getElementById('max-btn');
             var windowApi = window.api;
+            try {
+                var savedVolumeValue = localStorage.getItem('drayMasterVolume');
+                if (savedVolumeValue !== null && savedVolumeValue.trim() !== '') {
+                    var savedVolume = Number(savedVolumeValue);
+                    if (Number.isFinite(savedVolume) && savedVolume >= 0 && savedVolume <= 1) {
+                        lastMasterVolume = savedVolume;
+                    }
+                }
+                isAudioMuted = localStorage.getItem('drayAudioMuted') === 'true';
+            } catch (e) {}
+            if (DOM.audio) {
+                DOM.audio.volume = lastMasterVolume;
+                DOM.audio.muted = isAudioMuted;
+            }
+            if (DOM.masterVolumeSlider) DOM.masterVolumeSlider.value = String(lastMasterVolume);
+            updateMasterVolumePercent();
+            updateVolumeButton();
+            updateTrayPlaybackState(!!(DOM.audio && !DOM.audio.paused));
+            if (windowApi && windowApi.onMinimized) {
+                windowApi.onMinimized(function () {
+                    document.body.classList.add('performance-minimized');
+                });
+            }
+            if (windowApi && windowApi.onRestored) {
+                windowApi.onRestored(function () {
+                    document.body.classList.remove('performance-minimized');
+                });
+            }
             document.getElementById('min-btn').onclick = () => windowApi && windowApi.minimize();
             document.getElementById('max-btn').onclick = () => windowApi && windowApi.maximize();
             document.getElementById('close-btn').onclick = () => windowApi && windowApi.close();
@@ -288,6 +377,22 @@ function clampPercent(p) {
     return Math.max(0, Math.min(100, Number(p) || 0));
 }
 
+function updateRangeFill(range) {
+    if (!range) return;
+    var min = Number(range.min) || 0;
+    var max = Number(range.max);
+    var value = Number(range.value);
+    var progress = max > min && Number.isFinite(value)
+        ? clampPercent(((value - min) / (max - min)) * 100)
+        : 0;
+    range.style.setProperty('--range-progress', progress + '%');
+}
+
+function updateAllRangeFills() {
+    var sliders = document.querySelectorAll('input[type="range"]');
+    for (var i = 0; i < sliders.length; i++) updateRangeFill(sliders[i]);
+}
+
 function saveFavorites() {
     localStorage.setItem('drayFavorites', JSON.stringify(favoriteUrls));
 }
@@ -323,6 +428,45 @@ function updateAudioSettingsLabels() {
         var label = document.getElementById(labels[i][0]);
         if (input && label) label.textContent = labels[i][1](input.value);
     }
+    updateSliderPercentages();
+}
+
+function updateSliderPercentages() {
+    var sliders = document.querySelectorAll('#equalizerPage input[type="range"]');
+    for (var i = 0; i < sliders.length; i++) {
+        var slider = sliders[i];
+        var percentLabel = document.getElementById(
+            slider.id.indexOf('eqSlider') === 0
+                ? 'eqPercent' + slider.id.slice('eqSlider'.length)
+                : slider.id.replace(/Slider$/, 'Percent')
+        );
+        if (!percentLabel) continue;
+
+        var min = Number(slider.min) || 0;
+        var max = Number(slider.max);
+        var range = max - min;
+        var percent = range > 0 ? ((Number(slider.value) - min) / range) * 100 : 0;
+        percentLabel.textContent = Math.round(Math.max(0, Math.min(100, percent))) + '%';
+    }
+}
+
+function getAudioEffectControls() {
+    return document.querySelectorAll(
+        '#equalizerPage .eq-slider, #speedSlider, #preservePitch, #drySlider, #wetSlider, ' +
+        '#stereoWidthSlider, #centerGainSlider, #echoTimeSlider, #echoFeedbackSlider, #echoMixSlider'
+    );
+}
+
+function resetAudioEffects() {
+    var controls = getAudioEffectControls();
+    for (var i = 0; i < controls.length; i++) {
+        if (controls[i].type === 'checkbox') controls[i].checked = controls[i].defaultChecked;
+        else controls[i].value = controls[i].defaultValue;
+    }
+    updateAllRangeFills();
+    updateAudioSettingsLabels();
+    applyAudioSettingsToNodes();
+    saveAudioSettings();
 }
 
 function restoreAudioSettings() {
@@ -399,9 +543,113 @@ function updatePlayPauseButtons() {
     if (DOM.btnPlayPauseNowPlaying) DOM.btnPlayPauseNowPlaying.innerHTML = iconHTML;
 }
 
+function updateTrayPlaybackState(isPlaying) {
+    if (!windowApi || !windowApi.updatePlaybackState) return;
+    var song = currentPlaylist[currentIndex];
+    windowApi.updatePlaybackState({
+        isPlaying: isPlaying,
+        hasSong: !!song,
+        title: song && song.title ? song.title : ''
+    });
+}
+
+function updateVolumeButton() {
+    if (!DOM.btnVolume) return;
+    var volumeControl = document.getElementById('volumeControl');
+    if (volumeControl) volumeControl.classList.toggle('is-muted', isAudioMuted);
+    var icon = isAudioMuted ? 'volume_off' :
+        (lastMasterVolume < 0.5 ? 'volume_down' : 'volume_up');
+    var iconElement = DOM.btnVolume.querySelector('.material-symbols-rounded');
+    if (iconElement) iconElement.textContent = icon;
+    DOM.btnVolume.setAttribute('aria-label', isAudioMuted ? 'Unmute' : 'Mute');
+    DOM.btnVolume.title = isAudioMuted ? 'Unmute' : 'Mute';
+}
+
+function updateMasterVolumePercent() {
+    if (DOM.masterVolumePercent) {
+        DOM.masterVolumePercent.textContent = Math.round(lastMasterVolume * 100) + '%';
+    }
+}
+
+function setAudioMuted(muted) {
+    isAudioMuted = muted;
+    if (DOM.audio) DOM.audio.muted = muted;
+    try {
+        localStorage.setItem('drayAudioMuted', String(muted));
+    } catch (e) {}
+    updateVolumeButton();
+    updateTrayPlaybackState(!!(DOM.audio && !DOM.audio.paused));
+}
+
+function pauseAudio() {
+    if (!DOM.audio) return;
+    playbackRequested = false;
+    trackSourceChanging = false;
+    DOM.audio.pause();
+    updateTrayPlaybackState(false);
+}
+
+function setPlayerControlsDisabled(disabled) {
+    var controls = document.querySelectorAll(
+        '.player-main button, .player-main input[type="range"], ' +
+        '.player-right button, .player-right input[type="range"]'
+    );
+    for (var i = 0; i < controls.length; i++) controls[i].disabled = disabled;
+}
+
+function stopCurrentSong() {
+    if (!DOM.audio) return;
+
+    playbackRequested = false;
+    trackSourceChanging = false;
+    trackSourceChangeId++;
+    DOM.audio.pause();
+    if (Number.isFinite(DOM.audio.duration)) DOM.audio.currentTime = 0;
+    currentIndex = -1;
+    document.body.classList.add('no-song');
+    setPlayerControlsDisabled(true);
+    if (DOM.currentTitle) DOM.currentTitle.textContent = 'Not Playing';
+    if (DOM.currentArtist) DOM.currentArtist.textContent = 'Select a song';
+    if (DOM.nowplayingTitle) DOM.nowplayingTitle.textContent = 'Not Playing';
+    if (DOM.nowplayingArtist) DOM.nowplayingArtist.textContent = 'Select a song';
+    if (DOM.btnFavorite) DOM.btnFavorite.disabled = true;
+    if (DOM.btnAddToPlaylist) DOM.btnAddToPlaylist.disabled = true;
+    if (DOM.btnDownloadSong) DOM.btnDownloadSong.disabled = true;
+    if (DOM.btnStop) DOM.btnStop.disabled = true;
+    if (DOM.currentArt) DOM.currentArt.src = 'assets/icon.png';
+    if (DOM.nowplayingArt) DOM.nowplayingArt.src = 'assets/icon.png';
+    if (DOM.nowplayingArtBackground) DOM.nowplayingArtBackground.src = 'assets/icon.png';
+    if (DOM.seekBar) {
+        DOM.seekBar.value = 0;
+        updateRangeFill(DOM.seekBar);
+    }
+    if (DOM.seekBarNowPlaying) {
+        DOM.seekBarNowPlaying.max = 0;
+        DOM.seekBarNowPlaying.value = 0;
+        updateRangeFill(DOM.seekBarNowPlaying);
+    }
+    try {
+        localStorage.removeItem('drayLastSongUrl');
+    } catch (e) {}
+    if (DOM.nowplayingPane && DOM.nowplayingPane.classList.contains('open')) {
+        DOM.nowplayingPane.classList.remove('open');
+        if (document.fullscreenElement && document.exitFullscreen) {
+            document.exitFullscreen().catch(console.error);
+        }
+    }
+    updatePlayPauseButtons();
+    updateTrackTimeLabels(0, 0);
+    updateMediaSession(null);
+    updateDiscordRPCForBrowsing();
+    updateTrayPlaybackState(false);
+}
+
 function updateSeekUI(percent) {
     var p = clampPercent(percent);
-    if (DOM.seekBar) DOM.seekBar.value = p;
+    if (DOM.seekBar) {
+        DOM.seekBar.value = p;
+        updateRangeFill(DOM.seekBar);
+    }
     if (DOM.progressFill) DOM.progressFill.style.width = p + '%';
 }
 
@@ -426,37 +674,58 @@ function applySeekToAudio(percent) {
 }
 
 function updateMediaSession(song) {
-    if (!song) return;
-    if ('mediaSession' in navigator) {
-        navigator.mediaSession.metadata = new MediaMetadata({
-            title: song.title || '',
-            artist: song.artist || '',
-            album: song.album || 'DrayMusic',
-            artwork: [
-                { src: song.art || 'assets/icon.png', sizes: '512x512', type: 'image/png' }
-            ]
-        });
+    if (!('mediaSession' in navigator)) return;
 
-        if (mediaSessionHandlersRegistered) return;
+    var idle = !song;
+    navigator.mediaSession.metadata = new MediaMetadata({
+        title: idle ? 'DrayMusic' : (song.title || ''),
+        artist: idle ? '' : (song.artist || ''),
+        album: idle ? 'DrayMusic' : (song.album || 'DrayMusic'),
+        artwork: [
+            { src: idle ? 'assets/icon.png' : (song.art || 'assets/icon.png'), sizes: '512x512', type: 'image/png' }
+        ]
+    });
+
+    if (!mediaSessionHandlersRegistered) {
         navigator.mediaSession.setActionHandler('play', function () {
+            if (currentIndex < 0 || !currentPlaylist[currentIndex]) {
+                if (!allSongs.length) return;
+                currentPlaylist = allSongs.slice(0);
+                playSong(0);
+                return;
+            }
             safePlay(DOM.audio);
         });
         navigator.mediaSession.setActionHandler('pause', function () {
-            DOM.audio.pause();
-        });
-        navigator.mediaSession.setActionHandler('previoustrack', function () {
-            playSong(currentIndex - 1);
-        });
-        navigator.mediaSession.setActionHandler('nexttrack', function () {
-            playSong(currentIndex + 1);
+            pauseAudio();
         });
         navigator.mediaSession.setActionHandler('stop', function () {
-            DOM.audio.pause();
+            if (!DOM.audio) return;
+            pauseAudio();
             DOM.audio.currentTime = 0;
             updatePlayPauseButtons();
         });
         mediaSessionHandlersRegistered = true;
     }
+
+    navigator.mediaSession.setActionHandler('previoustrack', idle ? null : function () {
+        playSong(currentIndex - 1);
+    });
+    navigator.mediaSession.setActionHandler('nexttrack', idle ? null : function () {
+        playSong(currentIndex + 1);
+    });
+    navigator.mediaSession.setActionHandler('seekto', idle ? null : function (details) {
+        if (DOM.audio && Number.isFinite(details.seekTime)) DOM.audio.currentTime = details.seekTime;
+    });
+    navigator.mediaSession.setActionHandler('seekbackward', idle ? null : function (details) {
+        if (DOM.audio) DOM.audio.currentTime = Math.max(0, DOM.audio.currentTime - (details.seekOffset || 10));
+    });
+    navigator.mediaSession.setActionHandler('seekforward', idle ? null : function (details) {
+        if (DOM.audio && Number.isFinite(DOM.audio.duration)) {
+            DOM.audio.currentTime = Math.min(DOM.audio.duration, DOM.audio.currentTime + (details.seekOffset || 10));
+        }
+    });
+    if (idle) navigator.mediaSession.playbackState = 'paused';
 }
 
 function updateDownloadButton(song) {
@@ -645,6 +914,9 @@ function playSong(index, shouldPlay) {
     currentIndex = (index + currentPlaylist.length) % currentPlaylist.length;
     var song = currentPlaylist[currentIndex];
     if (!song || !song.url) return;
+    document.body.classList.remove('no-song');
+    setPlayerControlsDisabled(false);
+    if (DOM.btnStop) DOM.btnStop.disabled = false;
     playbackRequested = shouldPlay !== false;
     localStorage.setItem('drayLastSongUrl', song.url);
     if (DOM.btnFavorite) DOM.btnFavorite.disabled = false;
@@ -658,6 +930,8 @@ function playSong(index, shouldPlay) {
     }, 1500);
     DOM.audio.src = song.blobUrl || song.url;
     if (shouldPlay !== false) safePlay(DOM.audio);
+    else updateTrayPlaybackState(false);
+    updateTrackTimeLabels(0, 0);
 
     updatePlayback();
 
@@ -684,7 +958,7 @@ function playSong(index, shouldPlay) {
     }
 
     updateMediaSession(song);
-    syncDiscordRPC();
+    updateDiscordRPCForSong(song);
     if (shouldPlay === false && 'mediaSession' in navigator) {
         navigator.mediaSession.playbackState = 'paused';
     }
@@ -824,13 +1098,14 @@ function renderSidebarPlaylists() {
     if (!DOM.sidebarPlaylistList) return;
 
     var playlistNames = Object.keys(userPlaylists).sort(compareAlphabetically);
+    var staticPageCount = DOM.pageContainer.querySelectorAll('.page:not(.playlist-detail-page)').length;
     var sidebarHtml = '<div class="sidebar-playlists-header">' +
         '<span class="sidebar-playlists-heading">Your playlists</span>' +
         '<button type="button" class="sidebar-create-playlist" aria-label="Create playlist" title="Create playlist"><span class="material-symbols-rounded">add</span></button>' +
         '</div>';
     for (var i = 0; i < playlistNames.length; i++) {
         var sidebarName = playlistNames[i];
-        sidebarHtml += '<button class="sidebar-playlist-link" data-page="' + (5 + i) + '" data-name="' + escapeHTML(sidebarName) + '" title="' + escapeHTML(sidebarName) + '">' +
+        sidebarHtml += '<button class="sidebar-playlist-link" data-page="' + (staticPageCount + i) + '" data-name="' + escapeHTML(sidebarName) + '" title="' + escapeHTML(sidebarName) + '">' +
             '<span class="material-symbols-rounded">music_note</span>' +
             '<span class="sidebar-playlist-label">' + escapeHTML(sidebarName) + '</span>' +
             '</button>';
@@ -971,19 +1246,18 @@ function renderPlaylists() {
 }
 
 function getPlaylistPageIndex(playlistName) {
-    var playlistNames = Object.keys(userPlaylists).sort(compareAlphabetically);
-    var playlistIndex = playlistNames.indexOf(playlistName);
-    return playlistIndex === -1 ? -1 : 5 + playlistIndex;
+    var page = getPlaylistDetailPage(playlistName);
+    if (!page || !DOM.pageContainer) return -1;
+    return Array.prototype.indexOf.call(DOM.pageContainer.querySelectorAll('.page'), page);
 }
 
 function openPlaylistDetail(playlistName) {
     if (!Object.prototype.hasOwnProperty.call(userPlaylists, playlistName)) return;
-    if (pageTransitionTimeout !== null) return;
     var activePlaylistPage = getActivePlaylistPage();
     if (activePlaylistPage && activePlaylistPage.getAttribute('data-playlist') === playlistName) return;
     if (!getPlaylistDetailPage(playlistName)) renderSidebarPlaylists();
     var pageIndex = getPlaylistPageIndex(playlistName);
-    if (pageIndex < 5) return;
+    if (pageIndex < 0) return;
     if (!goToPage(pageIndex)) return;
     renderPlaylistDetail(playlistName);
 }
@@ -1057,7 +1331,10 @@ function goToPage(index) {
     if (index < 0 || index >= pages.length) return false;
     var nextPage = pages[index];
     if (!nextPage || nextPage.classList.contains('active')) return false;
-    if (pageTransitionTimeout !== null) return false;
+    if (pageTransitionTimeout !== null) {
+        clearTimeout(pageTransitionTimeout);
+        pageTransitionTimeout = null;
+    }
 
     var currentActivePage = DOM.pageContainer.querySelector('.page.active');
     for (var i = 0; i < pages.length; i++) {
@@ -1405,20 +1682,24 @@ function updatePlayback() {
     }
 }
 
-function syncDiscordRPC() {
-    if (windowApi && windowApi.updateDiscordRPC && currentIndex >= 0 && currentPlaylist.length > 0) {
-        var currentSong = currentPlaylist[currentIndex];
-        if (currentSong) {
-            windowApi.updateDiscordRPC({
-                title: currentSong.title,
-                artist: currentSong.artist,
-                duration: DOM.audio.duration || 0,
-                currentTime: DOM.audio.currentTime || 0,
-                playing: playbackRequested,
-                art: currentSong.art
-            });
-        }
-    }
+function updateDiscordRPCForSong(song) {
+    if (!song || song.url === lastDiscordSongUrl || !windowApi || !windowApi.updateDiscordRPC) return;
+    lastDiscordSongUrl = song.url;
+    windowApi.updateDiscordRPC({
+        title: song.title,
+        artist: song.artist,
+        art: song.art
+    });
+}
+
+function updateDiscordRPCForBrowsing() {
+    lastDiscordSongUrl = null;
+    if (!windowApi || !windowApi.updateDiscordRPC) return;
+    windowApi.updateDiscordRPC({
+        title: 'Browsing the library',
+        artist: 'DrayMusic',
+        art: 'logo'
+    });
 }
 
 function bindLiveSlider(el, callback) {
@@ -1431,6 +1712,30 @@ function bindEvents() {
     document.addEventListener('contextmenu', function (e) {
         e.preventDefault();
     });
+    document.addEventListener('input', function (e) {
+        if (e.target && e.target.matches && e.target.matches('input[type="range"]')) {
+            updateRangeFill(e.target);
+        }
+    });
+    document.addEventListener('change', function (e) {
+        if (e.target && e.target.matches && e.target.matches('input[type="range"]')) {
+            updateRangeFill(e.target);
+        }
+    });
+
+    if (DOM.btnVolume) DOM.btnVolume.addEventListener('click', function () {
+        setAudioMuted(!isAudioMuted);
+    });
+    if (DOM.masterVolumeSlider) DOM.masterVolumeSlider.addEventListener('input', function () {
+        lastMasterVolume = Number(DOM.masterVolumeSlider.value);
+        if (DOM.audio) DOM.audio.volume = lastMasterVolume;
+        updateMasterVolumePercent();
+        try {
+            localStorage.setItem('drayMasterVolume', String(lastMasterVolume));
+        } catch (e) {}
+        if (isAudioMuted) setAudioMuted(false);
+        else updateVolumeButton();
+    });
 
     if (DOM.btnPlayPauseNowPlaying) {
         DOM.btnPlayPauseNowPlaying.addEventListener('click', function () {
@@ -1438,7 +1743,7 @@ function bindEvents() {
                 DOM.audio.play();
                 this.innerHTML = '<span class="material-symbols-rounded">pause</span>';
             } else {
-                DOM.audio.pause();
+                pauseAudio();
                 this.innerHTML = '<span class="material-symbols-rounded">play_arrow</span>';
             }
         });
@@ -1449,6 +1754,16 @@ function bindEvents() {
     }
     if (DOM.btnPrevNowPlaying) {
         DOM.btnPrevNowPlaying.addEventListener('click', function() { playSong(currentIndex - 1); });
+    }
+
+    if (windowApi && windowApi.onTrayPrevious && DOM.btnPrev) {
+        windowApi.onTrayPrevious(function () { DOM.btnPrev.click(); });
+    }
+    if (windowApi && windowApi.onTrayPlayPause && DOM.btnPlayPause) {
+        windowApi.onTrayPlayPause(function () { DOM.btnPlayPause.click(); });
+    }
+    if (windowApi && windowApi.onTrayNext && DOM.btnNext) {
+        windowApi.onTrayNext(function () { DOM.btnNext.click(); });
     }
 
     bindLiveSlider(DOM.stereoWidthSlider, function (e) {
@@ -1490,12 +1805,15 @@ function bindEvents() {
         if (DOM.seekBarNowPlaying && DOM.audio.duration) {
             DOM.seekBarNowPlaying.max = DOM.audio.duration;
             DOM.seekBarNowPlaying.value = DOM.audio.currentTime;
+            updateRangeFill(DOM.seekBarNowPlaying);
         }
     });
 
     if (DOM.seekBarNowPlaying) {
         DOM.seekBarNowPlaying.addEventListener('input', function() {
             DOM.audio.currentTime = this.value;
+            updateRangeFill(this);
+            updateTrackTimeLabels(DOM.audio.currentTime, DOM.audio.duration);
         });
     }
 
@@ -1529,7 +1847,7 @@ if (DOM.btnCloseNowPlaying && DOM.nowplayingPane) {
                 safePlay(DOM.audio);
                 DOM.btnPlayPause.innerHTML = '<span class="material-symbols-rounded">pause</span>';
             } else {
-                DOM.audio.pause();
+                pauseAudio();
                 DOM.btnPlayPause.innerHTML = '<span class="material-symbols-rounded">play_arrow</span>';
             }
         });
@@ -1554,11 +1872,13 @@ if (DOM.btnCloseNowPlaying && DOM.nowplayingPane) {
         var startSeeking = function () { if (DOM.progressWrapper) DOM.progressWrapper.classList.add('seeking'); };
         var stopSeeking = function () { if (DOM.progressWrapper) DOM.progressWrapper.classList.remove('seeking'); };
 
-        syncDiscordRPC();
-        
         bindLiveSlider(DOM.seekBar, function (e) {
             updateSeekUI(e.target.value);
             applySeekToAudio(e.target.value);
+            updateTrackTimeLabels(
+                (Number(e.target.value) / 100) * DOM.audio.duration,
+                DOM.audio.duration
+            );
         });
 
         DOM.seekBar.addEventListener('pointerdown', startSeeking);
@@ -1572,13 +1892,24 @@ if (DOM.btnCloseNowPlaying && DOM.nowplayingPane) {
     }
 
     if (DOM.audio) {
+        DOM.audio.addEventListener('emptied', function () {
+            if (currentIndex === -1) updateMediaSession(null);
+        });
+
         DOM.audio.addEventListener('loadedmetadata', function () {
             trackSourceChanging = false;
             trackSourceChangeId++;
             if (pendingSeekPercent !== null) applySeekToAudio(pendingSeekPercent);
-            if (isFinite(DOM.audio.duration)) updateSeekUI((DOM.audio.currentTime / DOM.audio.duration) * 100);
+            if (isFinite(DOM.audio.duration)) {
+                updateSeekUI((DOM.audio.currentTime / DOM.audio.duration) * 100);
+                if (DOM.seekBarNowPlaying) {
+                    DOM.seekBarNowPlaying.max = DOM.audio.duration;
+                    DOM.seekBarNowPlaying.value = DOM.audio.currentTime;
+                    updateRangeFill(DOM.seekBarNowPlaying);
+                }
+            }
+            updateTrackTimeLabels(DOM.audio.currentTime, DOM.audio.duration);
             updatePlayback();
-            syncDiscordRPC();
             if ('mediaSession' in navigator && !DOM.audio.paused) {
                 navigator.mediaSession.playbackState = 'playing';
             }
@@ -1596,6 +1927,12 @@ if (DOM.btnCloseNowPlaying && DOM.nowplayingPane) {
         DOM.audio.addEventListener('timeupdate', function () {
             if (DOM.progressWrapper && DOM.progressWrapper.classList.contains('seeking')) return;
             if (isFinite(DOM.audio.duration)) updateSeekUI((DOM.audio.currentTime / DOM.audio.duration) * 100);
+            if (DOM.seekBarNowPlaying && isFinite(DOM.audio.duration)) {
+                DOM.seekBarNowPlaying.max = DOM.audio.duration;
+                DOM.seekBarNowPlaying.value = DOM.audio.currentTime;
+                updateRangeFill(DOM.seekBarNowPlaying);
+            }
+            updateTrackTimeLabels(DOM.audio.currentTime, DOM.audio.duration);
             if ('mediaSession' in navigator && typeof navigator.mediaSession.setPositionState === 'function') {
                 try {
                     navigator.mediaSession.setPositionState({
@@ -1608,6 +1945,7 @@ if (DOM.btnCloseNowPlaying && DOM.nowplayingPane) {
         });
 
         DOM.audio.addEventListener('ended', function () {
+            trackSourceChanging = true;
             if (isLooping) {
                 DOM.audio.currentTime = 0;
                 safePlay(DOM.audio);
@@ -1618,6 +1956,7 @@ if (DOM.btnCloseNowPlaying && DOM.nowplayingPane) {
 
         DOM.audio.addEventListener('play', function () {
             playbackRequested = true;
+            updateTrayPlaybackState(true);
             trackSourceChanging = false;
             trackSourceChangeId++;
             initAudioEngine();
@@ -1625,15 +1964,14 @@ if (DOM.btnCloseNowPlaying && DOM.nowplayingPane) {
             updatePlayback();
             updatePlayPauseButtons();
             if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'playing';
-            syncDiscordRPC();
         });
 
         DOM.audio.addEventListener('pause', function () {
             if (trackSourceChanging) return;
             playbackRequested = false;
+            updateTrayPlaybackState(false);
             updatePlayPauseButtons();
             if ('mediaSession' in navigator) navigator.mediaSession.playbackState = 'paused';
-            syncDiscordRPC();
         });
 
         DOM.audio.addEventListener('error', function () {
@@ -1751,16 +2089,7 @@ if (DOM.btnCloseNowPlaying && DOM.nowplayingPane) {
 
     if (DOM.btnStop) {
         DOM.btnStop.addEventListener('click', function () {
-            DOM.audio.pause();
-            DOM.audio.currentTime = 0;
-
-            if (DOM.btnPlayPause)
-                DOM.btnPlayPause.innerHTML = '<span class="material-symbols-rounded">play_arrow</span>';
-
-            document.querySelector('.mini-player').classList.add('notplaying');
-
-            var bg = document.getElementById('body-bg');
-            if (bg) bg.src = "assets/icon.png";
+            stopCurrentSong();
         });
     }
 
@@ -1909,6 +2238,34 @@ if (DOM.btnCloseNowPlaying && DOM.nowplayingPane) {
     for (var j = 0; j < settingsControls.length; j++) {
         settingsControls[j].addEventListener('input', saveAudioSettings);
         settingsControls[j].addEventListener('change', saveAudioSettings);
+        if (settingsControls[j].type === 'range') {
+            settingsControls[j].addEventListener('input', updateSliderPercentages);
+            settingsControls[j].addEventListener('change', updateSliderPercentages);
+        }
+    }
+    var resetEffectsButton = document.getElementById('btnResetEq');
+    if (resetEffectsButton) {
+        resetEffectsButton.addEventListener('click', resetAudioEffects);
+    }
+
+    if (DOM.colorModeSelect) {
+        DOM.colorModeSelect.addEventListener('change', function () {
+            try {
+                localStorage.setItem('drayColorMode', DOM.colorModeSelect.value);
+            } catch (e) {}
+            updateSystemThemeClass(systemThemeQuery);
+        });
+    }
+
+    if (DOM.closeToTrayToggle) {
+        DOM.closeToTrayToggle.addEventListener('change', function () {
+            try {
+                localStorage.setItem('drayCloseToTray', String(DOM.closeToTrayToggle.checked));
+            } catch (e) {}
+            if (window.api && window.api.setCloseToTray) {
+                window.api.setCloseToTray(DOM.closeToTrayToggle.checked);
+            }
+        });
     }
 }
 
@@ -2014,9 +2371,12 @@ function bootMusic() {
 })();
 
 restoreAudioSettings();
+updateAllRangeFills();
 restoreSidebarState();
 renderSidebarPlaylists();
 goToPage(0);
 bindEvents();
 bindLyricsEvents();
+setPlayerControlsDisabled(document.body.classList.contains('no-song'));
+updateMediaSession(null);
 bootMusic();

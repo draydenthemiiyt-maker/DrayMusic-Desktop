@@ -22,8 +22,12 @@ body {
     overflow: hidden;
     opacity: 0;
     transform: scale(0.8);
-    animation: fadeIn 0.8s ease-in-out forwards;
-    animation-delay: 1s;
+    animation: fadeIn 0.5s ease-in-out forwards;
+    animation-delay: 0.5s;
+}
+
+body.performance-minimized > :not(#audioElement) {
+    display: none !important;
 }
 
 @keyframes fadeIn {
@@ -263,7 +267,7 @@ html.legacy-platform .app-layout.sidebar-collapsed .sidebar-nav {
 
 .player {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -271,6 +275,16 @@ html.legacy-platform .app-layout.sidebar-collapsed .sidebar-nav {
   background-color: var(--panel-bg);
   padding: 0px 12px 0px 6px;
   z-index: 10;
+}
+
+body.no-song .player-left {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+body.no-song .player-main,
+body.no-song .player-right {
+    opacity: 0.5;
 }
 
 .player-controls-row {
@@ -285,6 +299,7 @@ html.legacy-platform .app-layout.sidebar-collapsed .sidebar-nav {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
+    flex: 0 1 420px;
     min-width: 237px;
   align-items: center;
 }
@@ -294,8 +309,31 @@ html.legacy-platform .app-layout.sidebar-collapsed .sidebar-nav {
         cursor: not-allowed;
 }
 
-#seekBar {
-  width: 100%;
+.seek-control {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.seek-control input[type="range"] {
+    flex: 1 1 auto;
+    width: 0;
+    min-width: 0;
+    margin: 0;
+    cursor: default;
+}
+
+.player-main > .seek-control input[type="range"] {
+    height: 24px;
+}
+
+.seek-time {
+    min-width: 34px;
+    color: var(--text-dim);
+    font-size: 11px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
 }
 
 .player-left {
@@ -311,6 +349,52 @@ html.legacy-platform .app-layout.sidebar-collapsed .sidebar-nav {
     align-items: center;
     flex: 1;
     justify-content: flex-end;
+}
+
+.volume-control {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.volume-popover {
+    position: absolute;
+    right: 4px;
+    bottom: calc(100% + 8px);
+    z-index: 20;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 190px;
+    padding: 10px 12px;
+    border: 1px solid var(--background-hover-and-border);
+    border-radius: 12px;
+    background: var(--panel-bg);
+    color: var(--text);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(4px);
+    transition: opacity 0.15s ease, transform 0.15s ease, visibility 0s 0.15s;
+}
+
+.volume-control:not(.is-muted):hover .volume-popover,
+.volume-control:not(.is-muted):focus-within .volume-popover {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+    transition-delay: 0s;
+}
+
+.volume-popover label {
+    font-size: 12px;
+}
+
+#masterVolumeSlider {
+    width: 120px;
+    min-width: 0;
+    cursor: pointer;
+    accent-color: var(--accent);
 }
 
 .player-left:hover {
@@ -472,7 +556,7 @@ body:has(.side-pane.open) > *:not(.side-pane) {
 }
 
 #seekBarNowPlaying {
-    width: 100%;
+    width: 0;
 }
 
 .button-group {
@@ -493,6 +577,103 @@ body:has(.side-pane.open) > *:not(.side-pane) {
 .control-group h3 {
     color: var(--on-surface);
     margin: 0px 0px 5px;
+}
+
+.settings-option-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    min-height: 42px;
+    color: var(--text);
+}
+
+.settings-select {
+    min-width: 180px;
+    padding: 7px 30px 7px 12px;
+    border: 1px solid var(--background-hover-and-border);
+    border-radius: 8px;
+    background: var(--background);
+    color: var(--text);
+    font: inherit;
+}
+
+.settings-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    cursor: default;
+}
+
+.settings-switch input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.settings-switch-track {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    flex: 0 0 auto;
+    border-radius: 11px;
+    background: var(--background-hover-and-border);
+    transition: background-color 0.2s ease;
+}
+
+.settings-switch-track::after {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--text);
+    content: "";
+    transition: transform 0.2s ease;
+}
+
+.settings-switch input:checked + .settings-switch-track {
+    background: var(--accent);
+}
+
+.settings-switch input:checked + .settings-switch-track::after {
+    transform: translateX(18px);
+}
+
+.settings-switch input:focus-visible + .settings-switch-track {
+    box-shadow: 0 0 0 2px var(--text);
+}
+
+.toggle-row {
+    display: flex;
+    align-items: center;
+    min-height: 32px;
+}
+
+.win-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    color: var(--text-dim);
+    line-height: 1.4;
+    cursor: default;
+}
+
+.win-switch input[type="checkbox"] {
+    position: static;
+    width: 16px;
+    height: 16px;
+    flex: 0 0 16px;
+    margin: 0;
+    opacity: 1;
+    accent-color: var(--accent);
+    cursor: default;
+}
+
+.win-switch-label {
+    display: block;
 }
 
 .eq-sliders {
@@ -531,6 +712,18 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     font-size: 11px;
     color: var(--text-dim);
     text-align: center;
+}
+
+.eq-percent {
+    position: absolute;
+    right: 0;
+    top: 0;
+    left: 0;
+    color: var(--text);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    pointer-events: none;
 }
 
 .slider-row {
@@ -607,6 +800,13 @@ body:has(.side-pane.open) > *:not(.side-pane) {
 .slider-row > span {
     flex: 0 0 52px;
     text-align: right;
+}
+
+.slider-row > .slider-percent {
+    flex: 0 0 42px;
+    color: var(--text-dim);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
 }
 
 .app-layout {
@@ -1043,95 +1243,146 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     pointer-events: auto;
 }
 
-/* Dumb looking slider */
-input[type=range] {
-     width: 100%;
-     margin-bottom: 4px;
-     background-color: transparent;
-     -webkit-appearance: none;
-     appearance: none;
-}
- input[type=range]:focus {
-     outline: none;
-}
- input[type=range]::-webkit-slider-runnable-track {
-     background: var(--accent);
-     border: 0;
-     border-radius: 25px;
-     width: 100%;
-     height: 12px;
-}
- input[type=range]::-webkit-slider-thumb {
-     margin-top: -6.5px;
-     width: 25px;
-     height: 25px;
-     background: var(--accent);
-     border: 4.5px solid var(--text);
-     border-radius: 50px;
-     -webkit-appearance: none;
-     transition: 0.3s !important;
+@property --range-progress {
+    syntax: "<percentage>";
+    inherits: false;
+    initial-value: 0%;
 }
 
- input[type=range]::-webkit-slider-thumb:hover {
-     border: 3px solid var(--text);
+input[type="range"] {
+    --range-progress: 0%;
+    width: 100%;
+    min-width: 0;
+    height: 42px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    cursor: default;
+    touch-action: pan-y;
+    transition: --range-progress 100ms linear;
 }
 
- input[type=range]::-webkit-slider-thumb:active {
-     margin-top: 0px;
-     background: var(--text);
-     border: 0px solid var(--text);
-     width: 40px;
-     height: 12px;
+input[type="range"]:focus {
+    outline: none;
 }
 
- input[type=range]:focus::-webkit-slider-runnable-track {
-     background: var(--accent);
+input[type="range"]::-webkit-slider-runnable-track {
+    height: 10px;
+    border: 0;
+    border-radius: 999px;
+    background: linear-gradient(
+        90deg,
+        var(--accent) 0,
+        var(--accent) var(--range-progress),
+        var(--background-hover-and-border) var(--range-progress),
+        var(--background-hover-and-border) 100%
+    );
 }
- input[type=range]::-moz-range-track {
-     background: var(--accent);
-     border: 0;
-     border-radius: 25px;
-     width: 100%;
-     height: 12px;
+
+input[type="range"]::-moz-range-track {
+    height: 10px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--background-hover-and-border);
 }
- input[type=range]::-moz-range-thumb {
-     width: 25px;
-     height: 25px;
-     background: var(--accent);
-     border: 4.5px solid var(--text);
-     border-radius: 50px;
+
+input[type="range"]::-moz-range-progress {
+    height: 10px;
+    border: 0;
+    border-radius: 999px;
+    background: var(--accent);
 }
- input[type=range]::-ms-track {
-     background: transparent;
-     border-color: transparent;
-     border-width: 6.5px 0;
-     color: transparent;
-     width: 100%;
-     height: 12px;
+
+input[type="range"]::-webkit-slider-thumb {
+    width: 20px;
+    height: 20px;
+    margin-top: -5px;
+    border: 3px solid var(--panel-bg);
+    border-radius: 50%;
+    appearance: none;
+    -webkit-appearance: none;
+    background: var(--accent);
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+    transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+        box-shadow 180ms ease;
 }
- input[type=range]::-ms-fill-lower {
-     background: var(--accent);
-     border: 0;
-     border-radius: 50px;
+
+input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
+    border: 3px solid var(--panel-bg);
+    border-radius: 50%;
+    background: var(--accent);
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.35);
+    transition: transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1),
+        box-shadow 180ms ease;
 }
- input[type=range]::-ms-fill-upper {
-     background: var(--accent);
-     border: 0;
-     border-radius: 50px;
+
+input[type="range"]:hover::-webkit-slider-thumb {
+    transform: scale(1.12);
 }
- input[type=range]::-ms-thumb {
-     width: 25px;
-     height: 25px;
-     background: var(--accent);
-     border: 4.5px solid var(--text);
-     border-radius: 50px;
-     margin-top: 0px;
+
+input[type="range"]:active::-webkit-slider-thumb {
+    transform: scale(1.28);
+    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 24%, transparent);
 }
- input[type=range]:focus::-ms-fill-lower {
-     background: var(--accent);
+
+input[type="range"]:hover::-moz-range-thumb {
+    transform: scale(1.12);
 }
- input[type=range]:focus::-ms-fill-upper {
-     background: var(--accent);
+
+input[type="range"]:active::-moz-range-thumb {
+    transform: scale(1.28);
+    transition-timing-function: cubic-bezier(0.34, 1.56, 0.64, 1);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 24%, transparent);
+}
+
+input[type="range"]:focus-visible::-webkit-slider-thumb,
+input[type="range"]:focus-visible::-moz-range-thumb {
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent);
+}
+
+input[type="range"]:disabled {
+    cursor: not-allowed;
+    opacity: 0.5;
+}
+
+@media (pointer: coarse) {
+    input[type="range"] {
+        height: 48px;
+    }
+
+    .player-main > .seek-control input[type="range"] {
+        height: 30px;
+    }
+
+    .eq-slider-col input[type="range"] {
+        height: 44px;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+        width: 22px;
+        height: 22px;
+        margin-top: -7px;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    input[type="range"],
+    input[type="range"]::-webkit-slider-thumb,
+    input[type="range"]::-moz-range-thumb {
+        transition: none;
+    }
 }
 
 /* I will never be used i mean drayden is too lazy to add it to all the songs */

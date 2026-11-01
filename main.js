@@ -1,12 +1,17 @@
 // © DraydenYT 2026
 
-const { app, BrowserWindow, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, Menu, nativeImage, shell, Tray, globalShortcut } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const { pathToFileURL } = require('url');
 const RPC = require('discord-rpc');
 const gotTheLock = app.requestSingleInstanceLock();
+let tray = null;
+let isQuitting = false;
+let closeToTray = true;
+let windowClosedToTray = false;
+let playbackState = { isPlaying: false, hasSong: false, title: '' };
 const isLegacyWin = (() => {
     if (process.platform !== 'win32') return false;
     const release = os.release();
@@ -19,9 +24,7 @@ if (!gotTheLock) {
 } else {
     app.on('second-instance', () => {
         if (BrowserWindow.getAllWindows().length > 0) {
-            const win = BrowserWindow.getAllWindows()[0];
-            if (win.isMinimized()) win.restore();
-            win.focus();
+            showWindow();
         }
     });
 }
@@ -29,45 +32,40 @@ if (!gotTheLock) {
 const clientId = '1534336322481819648';
 let rpcClient = null;
 let rpcReady = false;
-let latestDiscordActivity = {
-    details: 'Browsing library',
-    largeImageKey: 'logo',
-    largeImageText: 'DrayMusic',
-    instance: false
-};
-let discordActivityRevision = 0;
+let latestDiscordActivity = null;
 let discordActivityUpdateInFlight = false;
+let discordActivityUpdatePending = false;
 
 function applyLatestDiscordActivity() {
-    if (!rpcReady || !rpcClient || discordActivityUpdateInFlight) return;
+    if (!rpcReady || !rpcClient || !latestDiscordActivity) return;
+    if (discordActivityUpdateInFlight) {
+        discordActivityUpdatePending = true;
+        return;
+    }
 
-    const revision = discordActivityRevision;
+    const client = rpcClient;
     const activity = latestDiscordActivity;
     discordActivityUpdateInFlight = true;
 
-    Promise.resolve(rpcClient.setActivity(activity))
+    Promise.resolve()
+        .then(() => client.setActivity(activity))
         .catch(console.error)
-        .then(() => {
+        .finally(() => {
             discordActivityUpdateInFlight = false;
-            if (revision !== discordActivityRevision) applyLatestDiscordActivity();
+            if (discordActivityUpdatePending) {
+                discordActivityUpdatePending = false;
+                applyLatestDiscordActivity();
+            }
         });
-}
-
-function queueDiscordActivity(activity) {
-    latestDiscordActivity = activity;
-    discordActivityRevision++;
-    applyLatestDiscordActivity();
 }
 
 function buildDiscordActivity(data) {
     return {
-        details: data.title || 'Browsing library',
+        details: data.title,
         state: data.artist ? `by ${data.artist}` : undefined,
         largeImageKey: data.art || 'logo',
         largeImageText: data.title || 'DrayMusic',
-        smallImageKey: data.playing ? 'play' : 'pause',
-        smallImageText: data.playing ? 'Playing' : 'Paused',
-        type: 2,
+        type: data.title === 'Browsing the library' ? 0 : 2,
         buttons: [
             {
                 label: 'Discover DrayMusic',
@@ -78,20 +76,36 @@ function buildDiscordActivity(data) {
     };
 }
 
-function initDiscordRPC() {
-    RPC.register(clientId);
-    rpcClient = new RPC.Client({ transport: 'ipc' });
+function updateDiscordActivity(data) {
+    latestDiscordActivity = buildDiscordActivity(data);
+    if (!rpcClient) connectDiscordRPC();
+    applyLatestDiscordActivity();
+}
 
-    rpcClient.on('ready', () => {
+function connectDiscordRPC() {
+    RPC.register(clientId);
+    const client = new RPC.Client({ transport: 'ipc' });
+    rpcClient = client;
+
+    client.on('ready', () => {
+        if (rpcClient !== client) return;
         rpcReady = true;
         applyLatestDiscordActivity();
     });
 
-    rpcClient.on('disconnected', () => {
+    client.on('disconnected', () => {
+        if (rpcClient !== client) return;
         rpcReady = false;
+        rpcClient = null;
     });
 
-    rpcClient.login({ clientId }).catch(console.error);
+    client.login({ clientId }).catch((error) => {
+        console.error(error);
+        if (rpcClient === client) {
+            rpcReady = false;
+            rpcClient = null;
+        }
+    });
 }
 
 const BUILTIN_THEMES_DIR = path.join(__dirname, 'app', 'themes');
@@ -202,27 +216,68 @@ function createWindow() {
         minWidth: 632,
         minHeight: 123,
         frame: isLegacyWin,
-        autoHideMenuBar: true,
         resizable: true,
         show: false,
         webPreferences: {
-            preload: path.join(__dirname, 'preload.js')
+            preload: path.join(__dirname, 'preload.js'),
+            nodeIntegration: false,
+            contextIsolation: true,
+            sandbox: true
         }
     });
 
-    win.loadFile('app/main.html');
+    win.webContents.setVisualZoomLevelLimits(1, 1).catch(console.error);
+    win.once('ready-to-show', () => win.show());
+    win.loadFile(path.join(__dirname, 'app', 'main.html'));
+    win.webContents.on('before-input-event', (event, input) => {
+        const controlOrCmd = input.control || input.meta;
+        const key = input.key.toLowerCase();
+        const isDevTools = input.key.toLowerCase() === 'i' && controlOrCmd && input.shift;
+        const isCtrlR = key === 'r' && controlOrCmd;
+        const isF5 = input.key === 'F5';
+        const isZoomShortcut = controlOrCmd &&
+            (key === '-' || key === '_' || key === '=' || key === '+' || key === '0' ||
+                key === 'add' || key === 'subtract');
+
+        if (isDevTools || isCtrlR || isF5 || isZoomShortcut) {
+            event.preventDefault();
+        }
+    });
 
     win.webContents.setWindowOpenHandler(({ url }) => {
         shell.openExternal(url);
         return { action: 'deny' };
     });
 
-    ipcMain.on('window:minimize', () => win.minimize());
+    ipcMain.on('window:minimize', (event) => {
+        if (event.sender === win.webContents) win.minimize();
+    });
     ipcMain.on('window:maximize', () => {
         win.isMaximized() ? win.unmaximize() : win.maximize();
     });
-    ipcMain.on('window:close', () => win.close());
+    ipcMain.on('window:close', (event) => {
+        if (event.sender === win.webContents) win.close();
+    });
+    ipcMain.on('window:set-close-to-tray', (event, enabled) => {
+        if (event.sender === win.webContents && typeof enabled === 'boolean') closeToTray = enabled;
+    });
     ipcMain.handle('window:isMaximized', () => win.isMaximized());
+
+    win.on('minimize', () => win.webContents.send('window:minimized'));
+    win.on('restore', () => win.webContents.send('window:restored'));
+    win.on('show', () => win.webContents.send('window:restored'));
+    win.on('close', (event) => {
+        if (isQuitting) return;
+        if (closeToTray && playbackState.isPlaying) {
+            event.preventDefault();
+            windowClosedToTray = true;
+            win.hide();
+            updateTray();
+            return;
+        }
+        isQuitting = true;
+        app.quit();
+    });
 
     win.on('maximize', () => win.webContents.send('window:maximized'));
     win.on('unmaximize', () => win.webContents.send('window:unmaximized'));
@@ -231,28 +286,100 @@ function createWindow() {
         if (isLegacyWin) {
             win.webContents.executeJavaScript(`document.documentElement.classList.add('legacy-platform');`).catch(() => {});
         }
-        setTimeout(() => {
-            try { win.show(); } catch (e) {}
-        }, 500);
     });
 }
 
+function showWindow() {
+    const win = BrowserWindow.getAllWindows()[0];
+    if (!win) return;
+    windowClosedToTray = false;
+    if (win.isMinimized()) win.restore();
+    else win.show();
+    win.focus();
+    updateTray();
+}
+
+function sendTrayCommand(channel) {
+    const win = BrowserWindow.getAllWindows()[0];
+    if (win && !win.isDestroyed()) win.webContents.send(channel);
+}
+
+function updateTray() {
+    if (!playbackState.hasSong || !windowClosedToTray) {
+        if (tray) {
+            tray.destroy();
+            tray = null;
+        }
+        return;
+    }
+
+    if (!tray) createTray();
+    const status = playbackState.isPlaying ? 'Now playing' : 'Paused';
+    tray.setToolTip(`${status}: ${playbackState.title || 'Unknown song'}`.slice(0, 127));
+    tray.setContextMenu(Menu.buildFromTemplate([
+        { label: 'Backward', click: () => sendTrayCommand('tray:previous') },
+        {
+            label: playbackState.isPlaying ? 'Pause' : 'Play',
+            click: () => sendTrayCommand('tray:play-pause')
+        },
+        { label: 'Forward', click: () => sendTrayCommand('tray:next') },
+        { label: 'Stop', click: quitApp },
+        { type: 'separator' },
+        { label: 'Open DrayMusic', click: showWindow }
+    ]));
+}
+
+function createTray() {
+    const iconPath = path.join(__dirname, 'app', 'assets', 'icon.png');
+    const icon = nativeImage.createFromPath(iconPath);
+    if (icon.isEmpty()) throw new Error(`Could not load tray icon: ${iconPath}`);
+
+    tray = new Tray(icon);
+    tray.on('click', showWindow);
+    tray.on('double-click', showWindow);
+}
+
+function quitApp() {
+    isQuitting = true;
+    app.quit();
+}
+
 ipcMain.on('update-discord-rpc', (event, data) => {
-    queueDiscordActivity(buildDiscordActivity(data));
+    const win = BrowserWindow.getAllWindows()[0];
+    if (!win || event.sender !== win.webContents || !data || typeof data.title !== 'string' || !data.title.trim()) return;
+    updateDiscordActivity(data);
 });
 
-ipcMain.on('clear-discord-rpc', () => {
-    queueDiscordActivity({
-        details: 'Idle',
-        largeImageKey: 'logo',
-        largeImageText: 'DrayMusic BETA'
-    });
+ipcMain.on('window:playback-state', (event, state) => {
+    const win = BrowserWindow.getAllWindows()[0];
+    if (!win || event.sender !== win.webContents || !state || typeof state.isPlaying !== 'boolean') return;
+
+    playbackState = {
+        isPlaying: state.isPlaying,
+        hasSong: state.hasSong === true,
+        title: typeof state.title === 'string' ? state.title.trim().slice(0, 100) : ''
+    };
+    if (windowClosedToTray && !playbackState.isPlaying) {
+        if (!playbackState.hasSong) {
+            quitApp();
+            return;
+        }
+    }
+    updateTray();
 });
 
 app.whenReady().then(() => {
     ensureUserThemesDir();
     createWindow();
-    initDiscordRPC();
+});
+
+app.on('will-quit', () => {
+    if (tray) tray.destroy();
+    globalShortcut.unregisterAll();
+});
+
+app.on('before-quit', () => {
+    isQuitting = true;
 });
 
 app.on('window-all-closed', () => {
