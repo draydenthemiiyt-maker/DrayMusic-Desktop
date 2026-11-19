@@ -136,7 +136,17 @@ html.light {
 }
 
 html.macos-electron .titlebar-left {
-    margin-left: 80px;
+    margin-left: 90px;
+}
+
+html.macos-electron .titlebar,
+html.macos-electron .titlebar-left {
+    -webkit-app-region: drag;
+}
+
+html.macos-electron.macos-fullscreen .titlebar-left,
+html.macos-electron:fullscreen .titlebar-left {
+    margin-left: 16px;
 }
 
 html:not(.windows-electron) .titlebar-right {
@@ -932,6 +942,11 @@ body.no-song .player-right {
     opacity: 1;
     transform: scale(1);
     pointer-events: auto;
+}
+
+html.macos-electron .side-pane {
+    transform: none;
+    transition: none;
 }
 
 html.browser-mode #nowplayingPane {

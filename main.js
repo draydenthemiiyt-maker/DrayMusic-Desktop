@@ -289,6 +289,8 @@ function createWindow() {
 
     win.on('maximize', () => win.webContents.send('window:maximized'));
     win.on('unmaximize', () => win.webContents.send('window:unmaximized'));
+    win.on('enter-full-screen', () => win.webContents.send('window:entered-fullscreen'));
+    win.on('leave-full-screen', () => win.webContents.send('window:left-fullscreen'));
     
 }
 

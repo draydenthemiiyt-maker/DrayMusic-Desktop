@@ -7,6 +7,8 @@ contextBridge.exposeInMainWorld('api', {
     close: () => ipcRenderer.send('window:close'),
     onMaximize: (callback) => ipcRenderer.on('window:maximized', callback),
     onUnmaximize: (callback) => ipcRenderer.on('window:unmaximized', callback),
+    onEnterFullscreen: (callback) => ipcRenderer.on('window:entered-fullscreen', callback),
+    onLeaveFullscreen: (callback) => ipcRenderer.on('window:left-fullscreen', callback),
     onMinimized: (callback) => ipcRenderer.on('window:minimized', callback),
     onRestored: (callback) => ipcRenderer.on('window:restored', callback),
     isMaximized: () => ipcRenderer.invoke('window:isMaximized'),

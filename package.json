@@ -1,6 +1,6 @@
 {
   "name": "DrayMusicDesktop",
-  "version": "2.0.0",
+  "version": "2.5.0",
   "main": "main.js",
   "engines": {
     "node": ">=22.12.0"
@@ -15,7 +15,9 @@
     "protocols": [
       {
         "name": "DrayMusic Link",
-        "schemes": ["draymusic"]
+        "schemes": [
+          "draymusic"
+        ]
       }
     ],
     "asar": true,
@@ -36,10 +38,17 @@
     ]
   },
   "devDependencies": {
+    "bindings": "^1.5.0",
     "electron": "^45.2.1",
-    "electron-builder": "^26.18.0"
+    "electron-builder": "^26.18.0",
+    "node-addon-api": "^1.7.2"
   },
   "dependencies": {
     "discord-rpc": "^4.0.1"
+  },
+  "overrides": {
+    "discord-rpc": {
+      "register-scheme": "0.0.2"
+    }
   }
 }

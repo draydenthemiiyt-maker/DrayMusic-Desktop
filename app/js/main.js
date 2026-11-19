@@ -242,6 +242,16 @@ var spacePressBecameHold = false;
                     document.body.classList.remove('performance-minimized');
                 });
             }
+            if (windowApi && windowApi.onEnterFullscreen) {
+                windowApi.onEnterFullscreen(function () {
+                    document.documentElement.classList.add('macos-fullscreen');
+                });
+            }
+            if (windowApi && windowApi.onLeaveFullscreen) {
+                windowApi.onLeaveFullscreen(function () {
+                    document.documentElement.classList.remove('macos-fullscreen');
+                });
+            }
             document.getElementById('min-btn').onclick = () => windowApi && windowApi.minimize();
             document.getElementById('max-btn').onclick = () => windowApi && windowApi.maximize();
             document.getElementById('close-btn').onclick = () => windowApi && windowApi.close();
