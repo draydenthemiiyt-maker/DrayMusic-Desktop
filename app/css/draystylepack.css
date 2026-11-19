@@ -117,7 +117,6 @@ select {
     font: inherit;
 }
 
-/* 1. Register animatable custom properties for the angle and colours */
 @property --border-angle {
   syntax: "<angle>";
   initial-value: -135deg;
@@ -136,7 +135,6 @@ select {
   inherits: false;
 }
 
-/* 2. Base Input */
 input[type=text] {
   padding: 6px 14px;
   border-radius: 20px;
@@ -146,7 +144,6 @@ input[type=text] {
   cursor: text !important;
   font-size: 14px;
 
-  /* Layer 1: Inner fill | Layer 2: Animated gradient | Layer 3: Base border */
   background: 
     linear-gradient(var(--background), var(--background)) padding-box,
     linear-gradient(var(--border-angle), var(--grad-start), var(--grad-end)) border-box,
@@ -159,7 +156,6 @@ input[type=text] {
     box-shadow 0.5s ease;
 }
 
-/* 3. Hover State */
 input[type=text]:hover {
   background: 
     linear-gradient(var(--background-hover-and-border), var(--background-hover-and-border)) padding-box,
@@ -167,7 +163,6 @@ input[type=text]:hover {
     linear-gradient(var(--background-hover-and-border), var(--background-hover-and-border)) border-box;
 }
 
-/* 4. Focus State: Sweeps 180deg around and fades in to rest at 45deg */
 input[type=text]:focus {
   outline: none;
   --border-angle: 45deg;

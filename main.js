@@ -229,7 +229,7 @@ function createWindow() {
     const win = new BrowserWindow({
         width: 1200,
         height: 800,
-        minWidth: 632,
+        minWidth: 800,
         minHeight: 123,
         frame: process.platform !== 'win32',
         ...(process.platform === 'darwin' ? {

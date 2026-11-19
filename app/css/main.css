@@ -1,31 +1,5 @@
 /* © DraydenYT 2026 */
 
-/* ==========================================================================
-   Contents
-   1.  Reset & base
-   2.  Theme variables
-   3.  Animations
-   4.  Titlebar
-   5.  App layout (sidebar, pages)
-   6.  Song list
-   7.  Playlists
-   8.  Player bar
-   9.  Now playing pane
-   10. Lyrics pane
-   11. Settings (switches, EQ, themes)
-   12. Context menus
-   13. Range sliders
-   14. Browser mode (web build)
-   15. Scrollbars & misc
-   16. Responsive & accessibility
-   ========================================================================== */
-
-
-/* ==========================================================================
-   1. Reset & base
-   ========================================================================== */
-
-/* Strip the Chromium defaults */
 * {
     font-family: system-ui !important;
     -webkit-user-drag: none !important;
@@ -51,15 +25,9 @@ body {
     animation-delay: 0.5s;
 }
 
-/* Minimized: hide everything except the audio element so music keeps playing */
 body.performance-minimized > :not(#audioElement) {
     display: none !important;
 }
-
-
-/* ==========================================================================
-   2. Theme variables
-   ========================================================================== */
 
 html {
     --accent: #00a0ff;
@@ -83,11 +51,6 @@ html.light {
     --background-hover-and-border: #bfbfbf;
     --panel-bg: #efefef;
 }
-
-
-/* ==========================================================================
-   3. Animations
-   ========================================================================== */
 
 @keyframes fadeIn {
     from {
@@ -149,11 +112,6 @@ html.light {
     to   { opacity: 0; }
 }
 
-
-/* ==========================================================================
-   4. Titlebar
-   ========================================================================== */
-
 .titlebar {
     position: relative;
     display: flex;
@@ -181,7 +139,6 @@ html.macos-electron .titlebar-left {
     margin-left: 80px;
 }
 
-/* Window controls only exist on Windows */
 html:not(.windows-electron) .titlebar-right {
     display: none;
 }
@@ -191,7 +148,6 @@ html:not(.windows-electron) .titlebar-right {
     height: 24px;
 }
 
-/* Blue gradient text (titlebar title + sidebar headings) */
 .titlebar-left h1,
 .sidebar-heading,
 .sidebar-playlists-heading {
@@ -209,7 +165,6 @@ html:not(.windows-electron) .titlebar-right {
     font-weight: 600;
 }
 
-/* Search */
 .search-input-wrap {
     position: relative;
     flex: 0 1 300px;
@@ -243,7 +198,6 @@ html:not(.windows-electron) .search-input-wrap {
     color: var(--text);
 }
 
-/* Window controls (min / max / close) */
 .titlebar-btn {
     font-family: 'Segoe Fluent Icons', 'Segoe MDL2 Assets' !important;
     font-size: 10px;
@@ -277,11 +231,6 @@ html:not(.windows-electron) .search-input-wrap {
     color: rgb(0, 0, 0);
 }
 
-
-/* ==========================================================================
-   5. App layout (sidebar, pages)
-   ========================================================================== */
-
 .app-layout {
     --sidebar-width: 232px;
     --sidebar-collapsed-width: 68px;
@@ -290,8 +239,6 @@ html:not(.windows-electron) .search-input-wrap {
     min-height: 0;
     overflow: hidden;
 }
-
-/* --- Sidebar --- */
 
 .page-sidebar {
     display: flex;
@@ -364,8 +311,6 @@ html:not(.windows-electron) .search-input-wrap {
     background: var(--background);
     color: var(--text);
 }
-
-/* --- Sidebar playlists --- */
 
 .sidebar-playlists {
     display: flex;
@@ -451,8 +396,6 @@ html:not(.windows-electron) .search-input-wrap {
     color: var(--accent);
 }
 
-/* --- Sidebar collapsed --- */
-
 .app-layout.sidebar-collapsed .page-sidebar {
     flex-basis: var(--sidebar-collapsed-width);
     width: var(--sidebar-collapsed-width);
@@ -482,9 +425,6 @@ html:not(.windows-electron) .search-input-wrap {
     padding: 2px;
 }
 
-/* --- Page container --- */
-
-/* .page-viewport must stay below .scroll-area so it wins the overrides */
 .scroll-area {
     flex: 1 1 0%;
     padding: 0 16px 120px;
@@ -531,7 +471,6 @@ html:not(.windows-electron) .search-input-wrap {
     animation: pageFadeOut 180ms ease both;
 }
 
-/* Shared content width for page headers and lists */
 .page-title-header,
 .playlist-page-songs,
 .eq-page-content,
@@ -555,12 +494,6 @@ html:not(.windows-electron) .search-input-wrap {
     font-weight: 600;
 }
 
-
-/* ==========================================================================
-   6. Song list
-   ========================================================================== */
-
-/* NOTE: blur effects don't work on song cards */
 .song-card {
     display: flex;
     align-items: center;
@@ -632,11 +565,6 @@ html:not(.windows-electron) .search-input-wrap {
     text-align: center;
 }
 
-
-/* ==========================================================================
-   7. Playlists
-   ========================================================================== */
-
 .playlist-grid-layout {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 220px));
@@ -688,7 +616,6 @@ html:not(.windows-electron) .search-input-wrap {
     object-fit: cover;
 }
 
-/* Drag & drop reordering (playlist cards + sidebar links) */
 .playlist-card.playlist-dragging,
 .sidebar-playlist-link.playlist-dragging {
     opacity: 0.45;
@@ -700,11 +627,6 @@ html:not(.windows-electron) .search-input-wrap {
     outline: 2px solid var(--accent);
     outline-offset: -2px;
 }
-
-
-/* ==========================================================================
-   8. Player bar
-   ========================================================================== */
 
 .player {
     position: relative;
@@ -718,7 +640,6 @@ html:not(.windows-electron) .search-input-wrap {
     background-color: var(--panel-bg);
 }
 
-/* No song loaded: hide the song info, dim the controls */
 body.no-song .player-left {
     visibility: hidden;
     pointer-events: none;
@@ -736,8 +657,6 @@ body.no-song .player-right {
     padding: 12px 16px;
     -webkit-app-region: drag;
 }
-
-/* --- Left: artwork + title --- */
 
 .player-left {
     display: flex;
@@ -782,7 +701,6 @@ body.no-song .player-right {
     font-size: 12px;
 }
 
-/* Artwork fades while a new image loads */
 #currentArt,
 #nowplayingArt {
     transition: opacity 0.18s ease;
@@ -792,8 +710,6 @@ body.no-song .player-right {
 #nowplayingArt.art-loading {
     opacity: 0.42;
 }
-
-/* --- Center: controls + seek bar --- */
 
 .player-main {
     display: flex;
@@ -827,8 +743,6 @@ body.no-song .player-right {
     font-variant-numeric: tabular-nums;
     text-align: center;
 }
-
-/* --- Right: volume + extras --- */
 
 .player-right {
     display: flex;
@@ -949,8 +863,6 @@ body.no-song .player-right {
     accent-color: var(--accent);
 }
 
-/* --- Buttons --- */
-
 .player-main .icon-btn,
 .player-right .icon-btn {
     margin: 0 4px;
@@ -1001,12 +913,6 @@ body.no-song .player-right {
     display: none;
 }
 
-
-/* ==========================================================================
-   9. Now playing pane
-   ========================================================================== */
-
-/* Despite the name, this is a full-screen overlay now (it used to be a side pane) */
 .side-pane {
     position: fixed;
     top: 48px;
@@ -1019,7 +925,6 @@ body.no-song .player-right {
     transform: scale(0);
     pointer-events: none;
     transition: 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-    /* The titlebar drag region would swallow clicks while the pane is open */
     -webkit-app-region: no-drag !important;
 }
 
@@ -1033,7 +938,6 @@ html.browser-mode #nowplayingPane {
     display: none !important;
 }
 
-/* Pane open: hide everything else in the body */
 body:has(.side-pane.open) > *:not(.side-pane) {
     display: none;
 }
@@ -1156,12 +1060,6 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     }
 }
 
-
-/* ==========================================================================
-   10. Lyrics pane
-   (only shows for songs that have lyrics)
-   ========================================================================== */
-
 .lyrics-pane {
     --lyrics-width: 340px;
     display: flex;
@@ -1244,7 +1142,6 @@ body:has(.side-pane.open) > *:not(.side-pane) {
     font-size: 14px;
 }
 
-/* Floating button that reopens the pane */
 button.lyrics-fab {
     position: fixed;
     right: 16px;
@@ -1284,11 +1181,6 @@ button.lyrics-fab:active {
     transform: scale(0.92);
 }
 
-
-/* ==========================================================================
-   11. Settings (switches, EQ, themes)
-   ========================================================================== */
-
 .control-group {
     margin: 20px 0;
     padding: 10px 15px;
@@ -1302,8 +1194,6 @@ button.lyrics-fab:active {
     color: var(--on-surface);
 }
 
-/* --- Option rows --- */
-
 .settings-option-row {
     display: flex;
     align-items: center;
@@ -1313,15 +1203,11 @@ button.lyrics-fab:active {
     color: var(--text);
 }
 
-/* --- Switches --- */
-
 .toggle-row {
     display: flex;
     align-items: center;
     min-height: 32px;
 }
-
-/* --- Slider rows --- */
 
 .slider-row {
     display: flex;
@@ -1351,8 +1237,6 @@ button.lyrics-fab:active {
     font-size: 12px;
     font-variant-numeric: tabular-nums;
 }
-
-/* --- Equalizer --- */
 
 .eq-sliders {
     display: flex;
@@ -1403,8 +1287,6 @@ button.lyrics-fab:active {
     text-align: center;
     pointer-events: none;
 }
-
-/* --- Themes --- */
 
 .themes-header {
     display: flex;
@@ -1517,8 +1399,6 @@ button.lyrics-fab:active {
     color: var(--text-dim);
     font-size: 12px;
 }
-
-/* --- Theme card preview (a tiny mock of the app, colored by --tp-* variables) --- */
 
 .theme-preview {
     display: flex;
@@ -1672,12 +1552,6 @@ button.lyrics-fab:active {
     background: var(--tp-accent);
 }
 
-
-/* ==========================================================================
-   12. Context menus
-   (left over from the old DrayMusic Mobile)
-   ========================================================================== */
-
 .context-menu-backdrop {
     position: fixed;
     top: 0;
@@ -1812,7 +1686,6 @@ button.lyrics-fab:active {
     text-decoration: none;
 }
 
-/* Rename / create submenus */
 .context-submenu > input[type="text"] {
     width: 100%;
     margin: 0 0 12px;
@@ -1827,11 +1700,6 @@ button.lyrics-fab:active {
     width: auto;
     margin: 0;
 }
-
-
-/* ==========================================================================
-   13. Range sliders
-   ========================================================================== */
 
 @property --range-progress {
     syntax: "<percentage>";
@@ -1860,7 +1728,6 @@ input[type="range"]:disabled {
     cursor: not-allowed;
 }
 
-/* Track */
 input[type="range"]::-webkit-slider-runnable-track {
     height: 10px;
     border: 0;
@@ -1888,7 +1755,6 @@ input[type="range"]::-moz-range-progress {
     background: var(--accent);
 }
 
-/* Thumb */
 input[type="range"]::-webkit-slider-thumb {
     width: 20px;
     height: 20px;
@@ -1942,7 +1808,6 @@ input[type="range"]:focus-visible::-moz-range-thumb {
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 30%, transparent);
 }
 
-/* Touch screens: bigger hit areas */
 @media (pointer: coarse) {
     input[type="range"] {
         height: 48px;
@@ -1967,12 +1832,6 @@ input[type="range"]:focus-visible::-moz-range-thumb {
         height: 16px;
     }
 }
-
-
-/* ==========================================================================
-   14. Browser mode (web build)
-   Features that only exist in the desktop app are hidden here
-   ========================================================================== */
 
 html.browser-mode .sidebar-link[data-page="2"],
 html.browser-mode .sidebar-link[data-page="3"],
@@ -2003,17 +1862,11 @@ html:not(.browser-mode) .app-settings-link {
     margin-top: auto;
 }
 
-/* No hover highlight on the now-playing block in the browser */
 html.browser-mode .player-left:hover,
 html.browser-mode .player-left:active {
     border-radius: 0;
     background-color: transparent;
 }
-
-
-/* ==========================================================================
-   15. Scrollbars & misc
-   ========================================================================== */
 
 ::-webkit-scrollbar {
     width: 6px;
@@ -2030,15 +1883,9 @@ html.browser-mode .player-left:active {
     background-clip: content-box;
 }
 
-/* Icon fonts: let clicks pass through to the button underneath */
 .material-symbols-rounded {
     pointer-events: none;
 }
-
-
-/* ==========================================================================
-   16. Responsive & accessibility
-   ========================================================================== */
 
 @media (max-width: 760px) {
     .page {
@@ -2049,7 +1896,6 @@ html.browser-mode .player-left:active {
         display: none;
     }
 
-    /* Lyrics pane becomes a slide-in drawer */
     .lyrics-pane {
         position: fixed;
         top: 48px;
