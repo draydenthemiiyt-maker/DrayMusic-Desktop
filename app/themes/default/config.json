@@ -1,8 +1,0 @@
-{
-    "name": "DrayMusic Default",
-    "author": "DrayMusic",
-    "version": "1.0.0",
-    "description": "The Default DrayMusic colors.",
-    "stylesheet": "css/style.css",
-    "order": 0
-}

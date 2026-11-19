@@ -1,0 +1,21 @@
+html {
+    --accent: #00a0ff;
+}
+
+html.dark {
+    --text: #ffffff;
+    --text-dim: #999999;
+    --placeholder-text: #bfbfbf;
+    --background: #480b98;
+    --background-hover-and-border: #480b98;
+    --panel-bg: #300363;
+}
+
+html.light {
+    --text: #000000;
+    --text-dim: #666666;
+    --placeholder-text: #404040;
+    --background: #ede6ff;
+    --background-hover-and-border: #ede6ff;
+    --panel-bg: #d5c3fd;
+}

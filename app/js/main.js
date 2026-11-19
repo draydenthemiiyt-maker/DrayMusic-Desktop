@@ -1,5 +1,6 @@
 // © DraydenYT 2026
 
+var isElectronApp = Boolean(window.api && window.api.platform);
 var systemThemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
 window.addEventListener('wheel', function (event) {
@@ -7,6 +8,7 @@ window.addEventListener('wheel', function (event) {
 }, { capture: true, passive: false });
 
 function getColorModePreference() {
+    if (!isElectronApp) return 'system';
     try {
         var mode = localStorage.getItem('drayColorMode');
         return mode === 'light' || mode === 'dark' ? mode : 'system';
@@ -83,6 +85,7 @@ var DOM = {
     contextPlaylistSongOptions: document.getElementById('contextPlaylistSongOptions'),
     contextPlaylistItems: document.getElementById('contextPlaylistItems'),
     btnCreatePlaylist: document.getElementById('btnCreatePlaylist'),
+    audioEffectsHeading: document.getElementById('audioEffectsHeading'),
     newPlaylistInput: document.getElementById('newPlaylistInput'),
     btnRenamePlaylist: document.getElementById('btnRenamePlaylist'),
     btnDeletePlaylist: document.getElementById('btnDeletePlaylist'),
@@ -94,6 +97,14 @@ var DOM = {
     btnFavorite: document.getElementById('btnFavorite'),
     btnAddToPlaylist: document.getElementById('btnAddToPlaylist'),
     btnDownloadSong: document.getElementById('btnDownloadSong'),
+    shareWithTimestamp: document.getElementById('shareWithTimestamp'),
+    shareTimestampField: document.getElementById('shareTimestampField'),
+    shareTimestampInput: document.getElementById('shareTimestampInput'),
+    btnShareSong: document.getElementById('btnShareSong'),
+    btnPlayInDesktop: document.getElementById('btnPlayInDesktop'),
+    shareNotification: document.getElementById('shareNotification'),
+    contextDesktopLaunchOptions: document.getElementById('contextDesktopLaunchOptions'),
+    btnCloseDesktopLaunchNotice: document.getElementById('btnCloseDesktopLaunchNotice'),
     btnStop: document.getElementById('btnStop'),
     masterVolumeSlider: document.getElementById('masterVolumeSlider'),
     btnVolume: document.getElementById('btnVolume'),
@@ -150,10 +161,12 @@ window.audio = DOM.audio;
 var allSongs = [];
 var currentPlaylist = [];
 var currentIndex = -1;
+var pendingProtocolSongTitle = null;
 var lastDiscordSongUrl = null;
 var playbackRequested = false;
 var isLooping = false;
 var pendingSeekPercent = null;
+var pendingSharedSongTimestamp = null;
 var mediaSessionHandlersRegistered = false;
 var trackSourceChanging = false;
 var trackSourceChangeId = 0;
@@ -164,10 +177,22 @@ var nextArtworkPreloader = null;
 var nextArtworkPreloadUrl = '';
 var activeTargetSong = null;
 var activeTargetPlaylist = null;
+var desktopLaunchMenuTimeout = null;
 var currentPage = 0;
 var pageTransitionTimeout = null;
 var favoriteUrls = JSON.parse(localStorage.getItem('drayFavorites') || '[]');
-var userPlaylists = JSON.parse(localStorage.getItem('drayPlaylists') || '{}');
+var userPlaylists = isElectronApp ? JSON.parse(localStorage.getItem('drayPlaylists') || '{}') : {};
+var playlistOrder = [];
+if (isElectronApp) {
+    try {
+        var savedPlaylistOrder = JSON.parse(localStorage.getItem('drayPlaylistOrder') || '[]');
+        if (Array.isArray(savedPlaylistOrder)) {
+            playlistOrder = savedPlaylistOrder.filter(function (name) { return typeof name === 'string'; });
+        }
+    } catch (error) {
+        console.error('Could not load playlist order:', error);
+    }
+}
 var audioCtx = null;
 var filters = [];
 var reverbNode, dryGain, wetGain;
@@ -182,6 +207,10 @@ var lyricsRequestId = 0;
 var lyricsCache = {};
 var lastMasterVolume = 1;
 var isAudioMuted = false;
+var isSpaceSpeedBoostActive = false;
+var spacePressTimer = null;
+var isSpaceKeyDown = false;
+var spacePressBecameHold = false;
 
             var maxBtn = document.getElementById('max-btn');
             var windowApi = window.api;
@@ -285,7 +314,7 @@ function syncSongOffline(songUrl) {
 
     var isFav = favoriteUrls.indexOf(songUrl) !== -1;
     var containingPlaylists = [];
-    var playlistNames = Object.keys(userPlaylists);
+    var playlistNames = getOrderedPlaylistNames();
     for (var i = 0; i < playlistNames.length; i++) {
         var pName = playlistNames[i];
         if (userPlaylists[pName] && userPlaylists[pName].indexOf(songUrl) !== -1) {
@@ -398,7 +427,201 @@ function saveFavorites() {
 }
 
 function savePlaylists() {
+    if (!isElectronApp) return;
     localStorage.setItem('drayPlaylists', JSON.stringify(userPlaylists));
+    savePlaylistOrder();
+}
+
+function getOrderedPlaylistNames() {
+    var currentNames = Object.keys(userPlaylists);
+    var orderedNames = playlistOrder.filter(function (name, index) {
+        return currentNames.indexOf(name) !== -1 && playlistOrder.indexOf(name) === index;
+    });
+    var unlistedNames = currentNames.filter(function (name) {
+        return orderedNames.indexOf(name) === -1;
+    });
+    unlistedNames.sort(compareAlphabetically);
+    playlistOrder = orderedNames.concat(unlistedNames);
+    return playlistOrder.slice();
+}
+
+function savePlaylistOrder() {
+    playlistOrder = getOrderedPlaylistNames();
+    localStorage.setItem('drayPlaylistOrder', JSON.stringify(playlistOrder));
+}
+
+function savePlaylistOrderFromContainer(container, selector) {
+    var renderedItems = container.querySelectorAll(selector);
+    var renderedOrder = [];
+    for (var i = 0; i < renderedItems.length; i++) {
+        renderedOrder.push(renderedItems[i].getAttribute('data-name'));
+    }
+
+    var currentOrder = getOrderedPlaylistNames();
+    if (renderedOrder.length !== currentOrder.length ||
+        currentOrder.some(function (name) { return renderedOrder.indexOf(name) === -1; })) return;
+
+    playlistOrder = renderedOrder;
+    savePlaylistOrder();
+    renderPlaylists();
+}
+
+function bindPlaylistDragAndDrop(container, selector, direction) {
+    if (container.dataset.playlistDragBound === 'true') return;
+    container.dataset.playlistDragBound = 'true';
+
+    var dragState = null;
+    var suppressClick = false;
+    var clickResetTimer = null;
+    var shiftAnimations = new WeakMap();
+    var prefersReducedMotion = window.matchMedia &&
+        window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+    function captureShiftPositions(excludedItem) {
+        if (prefersReducedMotion) return [];
+        var items = container.querySelectorAll(selector);
+        var positions = [];
+        for (var i = 0; i < items.length; i++) {
+            var item = items[i];
+            if (item === excludedItem) continue;
+            var animation = shiftAnimations.get(item);
+            if (animation && animation.playState !== 'finished') animation.cancel();
+            var rect = item.getBoundingClientRect();
+            positions.push({ item: item, left: rect.left, top: rect.top });
+        }
+        return positions;
+    }
+
+    function animateShift(positions) {
+        for (var i = 0; i < positions.length; i++) {
+            var position = positions[i];
+            if (!position.item.isConnected || typeof position.item.animate !== 'function') continue;
+            var rect = position.item.getBoundingClientRect();
+            var deltaX = position.left - rect.left;
+            var deltaY = position.top - rect.top;
+            if (Math.abs(deltaX) < 1 && Math.abs(deltaY) < 1) continue;
+            var animation = position.item.animate([
+                { transform: 'translate(' + deltaX + 'px, ' + deltaY + 'px)' },
+                { transform: 'translate(0, 0)' }
+            ], { duration: 160, easing: 'ease-out' });
+            shiftAnimations.set(position.item, animation);
+        }
+    }
+
+    function clearDragState() {
+        if (!dragState) return;
+        dragState.sourceItem.classList.remove('playlist-dragging');
+        if (dragState.targetItem) dragState.targetItem.classList.remove('playlist-drop-target');
+        if (dragState.sourceItem.hasPointerCapture &&
+            dragState.sourceItem.hasPointerCapture(dragState.pointerId)) {
+            dragState.sourceItem.releasePointerCapture(dragState.pointerId);
+        }
+        dragState = null;
+    }
+
+    function finishDrag(event, shouldReorder) {
+        if (!dragState || dragState.pointerId !== event.pointerId) return;
+        var state = dragState;
+        var wasDragging = state.dragging;
+        var wasMoved = state.moved;
+        clearDragState();
+        if (wasDragging && shouldReorder) {
+            suppressClick = true;
+            clickResetTimer = setTimeout(function () {
+                suppressClick = false;
+                clickResetTimer = null;
+            }, 0);
+        }
+        if (shouldReorder && wasMoved) savePlaylistOrderFromContainer(container, selector);
+        else if (wasMoved) renderPlaylists();
+    }
+
+    function cancelDrag() {
+        var wasMoved = dragState && dragState.moved;
+        clearDragState();
+        if (wasMoved) renderPlaylists();
+    }
+
+    container.addEventListener('pointerdown', function (event) {
+        if (event.button !== 0) return;
+        var item = event.target.closest ? event.target.closest(selector) : null;
+        if (!item || !container.contains(item)) return;
+        dragState = {
+            sourceItem: item,
+            pointerId: event.pointerId,
+            startX: event.clientX,
+            startY: event.clientY,
+            dragging: false,
+            targetItem: null,
+            moved: false
+        };
+    });
+
+    document.addEventListener('pointermove', function (event) {
+        if (!dragState || dragState.pointerId !== event.pointerId) return;
+        var deltaX = event.clientX - dragState.startX;
+        var deltaY = event.clientY - dragState.startY;
+        if (!dragState.dragging && Math.sqrt(deltaX * deltaX + deltaY * deltaY) < 6) return;
+
+        if (!dragState.dragging) {
+            dragState.dragging = true;
+            dragState.sourceItem.classList.add('playlist-dragging');
+            if (dragState.sourceItem.setPointerCapture) {
+                dragState.sourceItem.setPointerCapture(event.pointerId);
+            }
+        }
+        event.preventDefault();
+
+        var target = document.elementFromPoint(event.clientX, event.clientY);
+        var targetItem = target && target.closest ? target.closest(selector) : null;
+        if (!targetItem || !container.contains(targetItem)) targetItem = null;
+        if (dragState.targetItem && dragState.targetItem !== targetItem) {
+            dragState.targetItem.classList.remove('playlist-drop-target');
+        }
+        dragState.targetItem = targetItem && targetItem !== dragState.sourceItem ? targetItem : null;
+        if (dragState.targetItem) {
+            var targetRect = dragState.targetItem.getBoundingClientRect();
+            var afterTarget;
+            if (direction === 'vertical') {
+                afterTarget = event.clientY >= targetRect.top + targetRect.height / 2;
+            } else {
+                var sourceRect = dragState.sourceItem.getBoundingClientRect();
+                var isSameRow = Math.abs(sourceRect.top - targetRect.top) < targetRect.height / 2;
+                afterTarget = isSameRow
+                    ? event.clientX >= targetRect.left + targetRect.width / 2
+                    : event.clientY >= targetRect.top + targetRect.height / 2;
+            }
+            dragState.targetItem.classList.add('playlist-drop-target');
+            if (afterTarget && dragState.targetItem.nextElementSibling !== dragState.sourceItem) {
+                var positions = captureShiftPositions(dragState.sourceItem);
+                container.insertBefore(dragState.sourceItem, dragState.targetItem.nextElementSibling);
+                animateShift(positions);
+                dragState.moved = true;
+            } else if (!afterTarget && dragState.sourceItem.nextElementSibling !== dragState.targetItem) {
+                var positions = captureShiftPositions(dragState.sourceItem);
+                container.insertBefore(dragState.sourceItem, dragState.targetItem);
+                animateShift(positions);
+                dragState.moved = true;
+            }
+        }
+    });
+
+    document.addEventListener('pointerup', function (event) {
+        finishDrag(event, true);
+    });
+    document.addEventListener('pointercancel', function (event) {
+        finishDrag(event, false);
+    });
+    window.addEventListener('blur', cancelDrag);
+    container.addEventListener('click', function (event) {
+        if (!suppressClick) return;
+        event.preventDefault();
+        event.stopPropagation();
+        event.stopImmediatePropagation();
+        if (clickResetTimer !== null) clearTimeout(clickResetTimer);
+        clickResetTimer = null;
+        suppressClick = false;
+    }, true);
 }
 
 function getAudioSettingsControls() {
@@ -406,6 +629,7 @@ function getAudioSettingsControls() {
 }
 
 function saveAudioSettings() {
+    if (!isElectronApp) return;
     var settings = {};
     var controls = getAudioSettingsControls();
     for (var i = 0; i < controls.length; i++) {
@@ -470,6 +694,10 @@ function resetAudioEffects() {
 }
 
 function restoreAudioSettings() {
+    if (!isElectronApp) {
+        updateAudioSettingsLabels();
+        return;
+    }
     var settings;
     try {
         settings = JSON.parse(localStorage.getItem('drayAudioSettings') || '{}');
@@ -516,6 +744,14 @@ function restoreSidebarState() {
 }
 
 function restoreLastPlayedSong() {
+    if (pendingProtocolSongTitle) {
+        var protocolSongTitle = pendingProtocolSongTitle;
+        pendingProtocolSongTitle = null;
+        if (playSongByTitle(protocolSongTitle)) return;
+    }
+
+    if (playSongFromShareHash()) return;
+
     var lastUrl = localStorage.getItem('drayLastSongUrl');
     if (!lastUrl) return;
     for (var i = 0; i < currentPlaylist.length; i++) {
@@ -524,6 +760,26 @@ function restoreLastPlayedSong() {
             return;
         }
     }
+}
+
+function playSongByTitle(title) {
+    var normalizedTitle = String(title || '').trim().toLocaleLowerCase();
+    if (!normalizedTitle) return false;
+
+    for (var i = 0; i < currentPlaylist.length; i++) {
+        if (currentPlaylist[i].url && String(currentPlaylist[i].title || '').trim().toLocaleLowerCase() === normalizedTitle) {
+            playSong(i);
+            return true;
+        }
+    }
+    return false;
+}
+
+if (window.api && window.api.onProtocolSong) {
+    window.api.onProtocolSong(function (title) {
+        pendingProtocolSongTitle = title;
+        if (playSongByTitle(title)) pendingProtocolSongTitle = null;
+    });
 }
 
 function safePlay(audioElement) {
@@ -595,6 +851,33 @@ function setPlayerControlsDisabled(disabled) {
         '.player-right button, .player-right input[type="range"]'
     );
     for (var i = 0; i < controls.length; i++) controls[i].disabled = disabled;
+    if (DOM.shareWithTimestamp) DOM.shareWithTimestamp.disabled = disabled;
+    if (DOM.shareTimestampInput) {
+        DOM.shareTimestampInput.disabled = disabled || !DOM.shareWithTimestamp.checked;
+    }
+}
+
+function playSongFromShareHash() {
+    var match = window.location.hash.match(/^#{1,2}song\+(.+?)(?:&t=(\d+(?:\.\d+)?))?$/i);
+    if (!match) return false;
+
+    var title;
+    try {
+        title = decodeURIComponent(match[1]);
+    } catch (error) {
+        console.error('Could not decode shared song link:', error);
+        return false;
+    }
+
+    var timestamp = match[2] === undefined ? null : Number(match[2]);
+    var normalizedTitle = title.trim().toLocaleLowerCase();
+    for (var i = 0; i < currentPlaylist.length; i++) {
+        if (currentPlaylist[i].url && String(currentPlaylist[i].title || '').trim().toLocaleLowerCase() === normalizedTitle) {
+            playSong(i, undefined, timestamp);
+            return true;
+        }
+    }
+    return false;
 }
 
 function stopCurrentSong() {
@@ -615,6 +898,8 @@ function stopCurrentSong() {
     if (DOM.btnFavorite) DOM.btnFavorite.disabled = true;
     if (DOM.btnAddToPlaylist) DOM.btnAddToPlaylist.disabled = true;
     if (DOM.btnDownloadSong) DOM.btnDownloadSong.disabled = true;
+    if (DOM.btnShareSong) DOM.btnShareSong.disabled = true;
+    if (DOM.btnPlayInDesktop) DOM.btnPlayInDesktop.disabled = true;
     if (DOM.btnStop) DOM.btnStop.disabled = true;
     if (DOM.currentArt) DOM.currentArt.src = 'assets/icon.png';
     if (DOM.nowplayingArt) DOM.nowplayingArt.src = 'assets/icon.png';
@@ -671,6 +956,65 @@ function applySeekToAudio(percent) {
         DOM.audio.currentTime = time;
     }
     pendingSeekPercent = null;
+}
+
+function seekBySeconds(seconds) {
+    if (!DOM.audio || !Number.isFinite(DOM.audio.duration) || DOM.audio.duration <= 0) return;
+    var currentTime = Number.isFinite(DOM.audio.currentTime) ? DOM.audio.currentTime : 0;
+    seekToSeconds(currentTime + seconds);
+}
+
+function seekToSeconds(time) {
+    if (!DOM.audio || !Number.isFinite(DOM.audio.duration) || DOM.audio.duration <= 0) return;
+    DOM.audio.currentTime = Math.max(0, Math.min(DOM.audio.duration, time));
+}
+
+function seekToPercent(percent) {
+    if (!DOM.audio) return;
+    var p = clampPercent(percent);
+    if (!DOM.audio.duration || !Number.isFinite(DOM.audio.duration)) {
+        pendingSeekPercent = p;
+        return;
+    }
+    seekToSeconds((p / 100) * DOM.audio.duration);
+    pendingSeekPercent = null;
+}
+
+function isSpaceKey(key) {
+    var normalizedKey = key.toLowerCase();
+    return key === ' ' || normalizedKey === 'space' || normalizedKey === 'spacebar';
+}
+
+function setSpaceSpeedBoost(active) {
+    if (isSpaceSpeedBoostActive === active) return;
+    isSpaceSpeedBoostActive = active;
+    updatePlayback();
+}
+
+function startSpacePress(event) {
+    event.preventDefault();
+    if (event.repeat || isSpaceKeyDown) return;
+    isSpaceKeyDown = true;
+    spacePressBecameHold = false;
+    spacePressTimer = setTimeout(function () {
+        spacePressTimer = null;
+        if (!isSpaceKeyDown) return;
+        spacePressBecameHold = true;
+        setSpaceSpeedBoost(true);
+    }, 200);
+}
+
+function finishSpacePress(togglePlayback) {
+    if (!isSpaceKeyDown) return;
+    if (spacePressTimer !== null) {
+        clearTimeout(spacePressTimer);
+        spacePressTimer = null;
+    }
+    var shouldTogglePlayback = togglePlayback && !spacePressBecameHold;
+    isSpaceKeyDown = false;
+    spacePressBecameHold = false;
+    setSpaceSpeedBoost(false);
+    if (shouldTogglePlayback && DOM.btnPlayPause) DOM.btnPlayPause.click();
 }
 
 function updateMediaSession(song) {
@@ -737,7 +1081,92 @@ function updateDownloadButton(song) {
     DOM.btnDownloadSong.setAttribute('aria-label', tooltip);
 }
 
+var shareNotificationTimeout = null;
+
+function showShareNotification(message) {
+    if (!DOM.shareNotification) return;
+    DOM.shareNotification.textContent = message;
+    DOM.shareNotification.classList.add('show');
+    clearTimeout(shareNotificationTimeout);
+    shareNotificationTimeout = setTimeout(function () {
+        DOM.shareNotification.classList.remove('show');
+    }, 2800);
+}
+
+function copyTextFallback(text) {
+    var input = document.createElement('textarea');
+    input.value = text;
+    input.setAttribute('readonly', '');
+    input.style.position = 'fixed';
+    input.style.opacity = '0';
+    document.body.appendChild(input);
+    var copied;
+    try {
+        input.select();
+        copied = document.execCommand('copy');
+    } finally {
+        input.parentNode.removeChild(input);
+    }
+    if (!copied) throw new Error('Clipboard copy was rejected');
+}
+
+function parseShareTimestamp(value) {
+    var parts = String(value).trim().split(':');
+    if (parts.length === 1) {
+        if (!/^\d+(?:\.\d+)?$/.test(parts[0])) return null;
+        var seconds = Number(parts[0]);
+        return Number.isFinite(seconds) && seconds >= 0 ? Math.floor(seconds) : null;
+    }
+
+    if (parts.length > 3 || parts.some(function (part) { return !/^\d+$/.test(part); })) return null;
+    var values = parts.map(Number);
+    var last = values.length - 1;
+    if (values[last] >= 60 || (values.length === 3 && values[1] >= 60)) return null;
+    if (values.length === 2) return values[0] * 60 + values[1];
+    return values[0] * 3600 + values[1] * 60 + values[2];
+}
+
+function shareCurrentSong() {
+    var song = currentPlaylist[currentIndex];
+    if (!song) return;
+
+    var timestamp = null;
+    if (DOM.shareWithTimestamp && DOM.shareWithTimestamp.checked) {
+        timestamp = parseShareTimestamp(DOM.shareTimestampInput ? DOM.shareTimestampInput.value : '');
+        if (timestamp === null) {
+            showShareNotification('Enter a valid timestamp, such as 1:23');
+            if (DOM.shareTimestampInput) DOM.shareTimestampInput.focus();
+            return;
+        }
+    }
+
+    var shareUrl = 'https://draydenthemiiyt-maker.github.io/draymusic.github.io/newWebdesktopExperience/main.html##song+' +
+        encodeURIComponent(song.title || '');
+    if (timestamp !== null) shareUrl += '&t=' + timestamp;
+    var copyPromise;
+    try {
+        copyPromise = navigator.clipboard && navigator.clipboard.writeText
+            ? navigator.clipboard.writeText(shareUrl)
+            : Promise.reject(new Error('Clipboard API is unavailable'));
+    } catch (error) {
+        copyPromise = Promise.reject(error);
+    }
+
+    copyPromise.then(function () {
+        showShareNotification('Copied to clipboard Share with friends!');
+    }).catch(function (clipboardError) {
+        try {
+            copyTextFallback(shareUrl);
+            showShareNotification('Copied to clipboard Share with friends!');
+        } catch (fallbackError) {
+            console.error('Could not copy share link:', clipboardError, fallbackError);
+            showShareNotification('Could not copy share link');
+        }
+    });
+}
+
 function downloadCurrentSong() {
+    if (!isElectronApp) return;
     var song = currentPlaylist[currentIndex];
     if (!song || song.copyrighted !== 'false' || !DOM.btnDownloadSong) return;
 
@@ -908,12 +1337,14 @@ function bindLyricsEvents() {
     applyLyricsState();
 }
 
-function playSong(index, shouldPlay) {
+function playSong(index, shouldPlay, sharedTimestamp) {
     if (!DOM.audio || currentPlaylist.length === 0) return;
 
     currentIndex = (index + currentPlaylist.length) % currentPlaylist.length;
     var song = currentPlaylist[currentIndex];
     if (!song || !song.url) return;
+    pendingSharedSongTimestamp = Number.isFinite(sharedTimestamp) && sharedTimestamp >= 0 ? sharedTimestamp : null;
+    if (pendingSharedSongTimestamp !== null) pendingSeekPercent = null;
     document.body.classList.remove('no-song');
     setPlayerControlsDisabled(false);
     if (DOM.btnStop) DOM.btnStop.disabled = false;
@@ -1035,6 +1466,11 @@ function renderList(data, container) {
     if (!container) return;
 
     sortSongsByTitle(data);
+    if (data.length === 0) {
+        renderEmptySongState(container);
+        return;
+    }
+
     var html = '';
     for (var i = 0; i < data.length; i++) {
         var song = data[i];
@@ -1082,13 +1518,17 @@ for (var c = 0; c < cards.length; c++) {
     }
 }
 
+function renderEmptySongState(container) {
+    container.innerHTML = '<p class="empty-song-state">Oops, there\'s nothing but crickets here! Check your spelling.</p>';
+}
+
 function renderFavorites() {
     if (!DOM.favoritesContainer) return;
     var favSongs = allSongs.filter(function (s) {
         return favoriteUrls.indexOf(s.url) !== -1;
     });
     if (favSongs.length === 0) {
-        DOM.favoritesContainer.innerHTML = '<p style="text-align:center; color: #938f99;">No favorites yet.</p>';
+        renderEmptySongState(DOM.favoritesContainer);
     } else {
         renderList(favSongs, DOM.favoritesContainer);
     }
@@ -1096,13 +1536,20 @@ function renderFavorites() {
 
 function renderSidebarPlaylists() {
     if (!DOM.sidebarPlaylistList) return;
+    if (!isElectronApp) {
+        DOM.sidebarPlaylistList.innerHTML = '';
+        return;
+    }
 
-    var playlistNames = Object.keys(userPlaylists).sort(compareAlphabetically);
+    var playlistNames = getOrderedPlaylistNames();
     var staticPageCount = DOM.pageContainer.querySelectorAll('.page:not(.playlist-detail-page)').length;
     var sidebarHtml = '<div class="sidebar-playlists-header">' +
         '<span class="sidebar-playlists-heading">Your playlists</span>' +
         '<button type="button" class="sidebar-create-playlist" aria-label="Create playlist" title="Create playlist"><span class="material-symbols-rounded">add</span></button>' +
         '</div>';
+    if (playlistNames.length === 0) {
+        sidebarHtml += '<p class="sidebar-empty-playlists">Create a playlist!</p>';
+    }
     for (var i = 0; i < playlistNames.length; i++) {
         var sidebarName = playlistNames[i];
         sidebarHtml += '<button class="sidebar-playlist-link" data-page="' + (staticPageCount + i) + '" data-name="' + escapeHTML(sidebarName) + '" title="' + escapeHTML(sidebarName) + '">' +
@@ -1111,6 +1558,7 @@ function renderSidebarPlaylists() {
             '</button>';
     }
     DOM.sidebarPlaylistList.innerHTML = sidebarHtml;
+    bindPlaylistDragAndDrop(DOM.sidebarPlaylistList, '.sidebar-playlist-link', 'vertical');
     syncPlaylistDetailPages(playlistNames);
 }
 
@@ -1195,10 +1643,15 @@ function syncPlaylistDetailPages(playlistNames) {
 
 function renderPlaylists() {
     if (!DOM.playlistsContainer) return;
+    if (!isElectronApp) return;
 
     var html = '';
-    var playlistNames = Object.keys(userPlaylists).sort(compareAlphabetically);
+    var playlistNames = getOrderedPlaylistNames();
     renderSidebarPlaylists();
+    if (playlistNames.length === 0) {
+        DOM.playlistsContainer.innerHTML = '<p class="empty-playlist-state">Create a playlist from the sidebar!</p>';
+        return;
+    }
 
     for (var p = 0; p < playlistNames.length; p++) {
         var pName = playlistNames[p];
@@ -1209,7 +1662,7 @@ function renderPlaylists() {
         var grids = '';
         for (var i = 0; i < 4; i++) {
             if (plSongs[i]) {
-                grids += '<img src="' + escapeHTML(plSongs[i].art) + '" alt="art">';
+                grids += '<img src="' + escapeHTML(plSongs[i].art) + '" alt="art" draggable="false">';
             } else {
                 grids += '<div class="blank-square"></div>';
             }
@@ -1222,6 +1675,7 @@ function renderPlaylists() {
             '</div>';
     }
     DOM.playlistsContainer.innerHTML = html;
+    bindPlaylistDragAndDrop(DOM.playlistsContainer, '.playlist-card', 'grid');
 
     var folders = DOM.playlistsContainer.querySelectorAll('.playlist-card');
     for (var f = 0; f < folders.length; f++) {
@@ -1275,6 +1729,11 @@ function renderPlaylistDetail(playlistName) {
     var songsContainer = detailPage.querySelector('.playlist-page-songs');
     var plSongs = getSongsInPlaylist(playlistName);
 
+    if (plSongs.length === 0) {
+        renderEmptySongState(songsContainer);
+        return;
+    }
+
     var html = '';
     for (var i = 0; i < plSongs.length; i++) {
         var s = plSongs[i];
@@ -1327,6 +1786,7 @@ window.playSongFromList = function (url) {
 
 function goToPage(index) {
     if (isWidgetApp() && index !== 0) return false;
+    if (!isElectronApp && (index === 2 || index === 3 || index >= 4)) return false;
     var pages = DOM.pageContainer ? DOM.pageContainer.querySelectorAll('.page') : [];
     if (index < 0 || index >= pages.length) return false;
     var nextPage = pages[index];
@@ -1376,6 +1836,27 @@ function positionContextMenu(x, y, menu) {
     targetMenu.style.visibility = 'visible';
 }
 
+function showDesktopLaunchContextMenu() {
+    if (!DOM.contextMenu || !DOM.contextDesktopLaunchOptions) return;
+    hideRenamePlaylistMenu();
+    hideCreatePlaylistMenu();
+
+    DOM.contextSongOptions.style.display = 'none';
+    DOM.contextPlaylistOptions.style.display = 'none';
+    DOM.contextPlaylistSongOptions.style.display = 'none';
+    if (DOM.contextPlayerOptions) DOM.contextPlayerOptions.style.display = 'none';
+    DOM.contextDesktopLaunchOptions.style.display = 'block';
+
+    DOM.contextMenu.style.visibility = 'hidden';
+    DOM.contextMenu.style.display = 'block';
+    var menuWidth = DOM.contextMenu.offsetWidth || 260;
+    var menuHeight = DOM.contextMenu.offsetHeight || 150;
+    positionContextMenu(
+        (window.innerWidth - menuWidth) / 2,
+        (window.innerHeight - menuHeight) / 2
+    );
+}
+
 function updateContextMenuBackdrop() {
     var backdrop = document.getElementById('contextMenuBackdrop');
     if (!backdrop) return;
@@ -1399,6 +1880,7 @@ function hideCreatePlaylistMenu() {
 }
 
 function openCreatePlaylistMenu(x, y) {
+    if (!isElectronApp) return;
     if (!DOM.createPlaylistMenu || !DOM.createPlaylistMenuInput) return;
     hideRenamePlaylistMenu();
     activeTargetPlaylist = null;
@@ -1433,6 +1915,7 @@ function commitCreatePlaylist() {
 }
 
 function showSongContextMenu(x, y, song) {
+    if (!isElectronApp) return;
     if (!DOM.contextMenu || !DOM.contextPlaylistItems) return;
     hideRenamePlaylistMenu();
     hideCreatePlaylistMenu();
@@ -1442,13 +1925,14 @@ function showSongContextMenu(x, y, song) {
     DOM.contextPlaylistOptions.style.display = 'none';
     DOM.contextPlaylistSongOptions.style.display = 'none';
     DOM.contextSongOptions.style.display = 'block';
+    if (DOM.contextDesktopLaunchOptions) DOM.contextDesktopLaunchOptions.style.display = 'none';
 
     if (DOM.contextPlayerOptions) DOM.contextPlayerOptions.style.display = 'none';
 
     positionContextMenu(x, y);
 
     var html = '';
-    var playlistNames = Object.keys(userPlaylists).sort(compareAlphabetically);
+    var playlistNames = getOrderedPlaylistNames();
     for (var i = 0; i < playlistNames.length; i++) {
         var pName = playlistNames[i];
         var hasSong = (userPlaylists[pName].indexOf(song.url) !== -1);
@@ -1494,6 +1978,7 @@ function showPlaylistContextMenu(x, y, playlistName) {
     DOM.contextSongOptions.style.display = 'none';
     DOM.contextPlaylistOptions.style.display = 'block';
     DOM.contextPlaylistSongOptions.style.display = 'none';
+    if (DOM.contextDesktopLaunchOptions) DOM.contextDesktopLaunchOptions.style.display = 'none';
 
     if (DOM.contextPlayerOptions) DOM.contextPlayerOptions.style.display = 'none';
 
@@ -1510,6 +1995,7 @@ function showPlaylistSongContextMenu(x, y, playlistName, song) {
     DOM.contextSongOptions.style.display = 'none';
     DOM.contextPlaylistOptions.style.display = 'none';
     DOM.contextPlaylistSongOptions.style.display = 'block';
+    if (DOM.contextDesktopLaunchOptions) DOM.contextDesktopLaunchOptions.style.display = 'none';
     if (DOM.contextPlayerOptions) DOM.contextPlayerOptions.style.display = 'none';
 
     positionContextMenu(x, y);
@@ -1554,9 +2040,15 @@ function commitPlaylistRename() {
 
     var activePage = getActivePlaylistPage();
     var wasActive = activePage && activePage.getAttribute('data-playlist') === oldName;
+    var orderedNames = getOrderedPlaylistNames();
+    var playlistOrderIndex = orderedNames.indexOf(oldName);
     var songsToSync = userPlaylists[oldName] || [];
     userPlaylists[newName] = songsToSync;
     delete userPlaylists[oldName];
+    if (playlistOrderIndex !== -1) {
+        orderedNames[playlistOrderIndex] = newName;
+        playlistOrder = orderedNames;
+    }
     savePlaylists();
     songsToSync.forEach(function (url) { syncSongOffline(url); });
 
@@ -1671,7 +2163,7 @@ function initAudioEngine() {
 function updatePlayback() {
     if (!DOM.audio) return;
     if (DOM.speedSlider) {
-        var speed = parseFloat(DOM.speedSlider.value);
+        var speed = parseFloat(DOM.speedSlider.value) * (isSpaceSpeedBoostActive ? 2 : 1);
         DOM.audio.playbackRate = speed;
         if (DOM.speedLabel) DOM.speedLabel.textContent = speed.toFixed(2) + 'x';
     }
@@ -1708,9 +2200,96 @@ function bindLiveSlider(el, callback) {
     el.addEventListener('change', callback);
 }
 
+function blurSliderAfterPointerInteraction(slider) {
+    if (!slider) return;
+    slider.addEventListener('pointerup', function () {
+        if (document.activeElement === slider) slider.blur();
+    });
+}
+
 function bindEvents() {
+    if (DOM.audioEffectsHeading && window.api && window.api.openDevTools) {
+        var audioEffectsHeadingClicks = 0;
+        DOM.audioEffectsHeading.addEventListener('click', function () {
+            audioEffectsHeadingClicks++;
+            if (audioEffectsHeadingClicks === 8) {
+                audioEffectsHeadingClicks = 0;
+                window.api.openDevTools();
+            }
+        });
+    }
+
     document.addEventListener('contextmenu', function (e) {
         e.preventDefault();
+    });
+    document.addEventListener('keydown', function (e) {
+        var target = e.target;
+        var key = e.key.toLowerCase();
+        var isSearchShortcut = key === '/';
+        if (e.altKey || e.ctrlKey || e.metaKey || (e.shiftKey && !isSearchShortcut) ||
+            (target && (target.isContentEditable ||
+                (target.matches && target.matches('input, textarea, select'))))) return;
+
+        if (isSpaceKey(e.key)) {
+            startSpacePress(e);
+            return;
+        }
+        if (isSearchShortcut) {
+            e.preventDefault();
+            if (DOM.searchInput) DOM.searchInput.focus();
+            return;
+        }
+
+        switch (key) {
+            case 'arrowleft':
+                e.preventDefault();
+                seekBySeconds(-5);
+                break;
+            case 'arrowright':
+                e.preventDefault();
+                seekBySeconds(5);
+                break;
+            case 'arrowup':
+                e.preventDefault();
+                playSong(currentIndex < 0 ? currentPlaylist.length - 1 : currentIndex - 1);
+                break;
+            case 'arrowdown':
+                e.preventDefault();
+                playSong(currentIndex + 1);
+                break;
+            case 'j':
+                e.preventDefault();
+                seekBySeconds(-10);
+                break;
+            case 'l':
+                e.preventDefault();
+                seekBySeconds(10);
+                break;
+            case 'home':
+                e.preventDefault();
+                if (currentPlaylist[currentIndex]) seekToPercent(0);
+                break;
+            case 'end':
+                e.preventDefault();
+                if (currentPlaylist[currentIndex] && DOM.audio && Number.isFinite(DOM.audio.duration)) {
+                    seekToSeconds(DOM.audio.duration - 10);
+                }
+                break;
+            case 'k':
+                e.preventDefault();
+                if (DOM.btnPlayPause) DOM.btnPlayPause.click();
+                break;
+        }
+        if (/^[0-9]$/.test(key) && currentPlaylist[currentIndex]) {
+            e.preventDefault();
+            seekToPercent(Number(key) * 10);
+        }
+    });
+    document.addEventListener('keyup', function (e) {
+        if (isSpaceKey(e.key)) finishSpacePress(true);
+    });
+    window.addEventListener('blur', function () {
+        finishSpacePress(false);
     });
     document.addEventListener('input', function (e) {
         if (e.target && e.target.matches && e.target.matches('input[type="range"]')) {
@@ -1736,6 +2315,9 @@ function bindEvents() {
         if (isAudioMuted) setAudioMuted(false);
         else updateVolumeButton();
     });
+    blurSliderAfterPointerInteraction(DOM.masterVolumeSlider);
+    blurSliderAfterPointerInteraction(DOM.seekBar);
+    blurSliderAfterPointerInteraction(DOM.seekBarNowPlaying);
 
     if (DOM.btnPlayPauseNowPlaying) {
         DOM.btnPlayPauseNowPlaying.addEventListener('click', function () {
@@ -1817,7 +2399,7 @@ function bindEvents() {
         });
     }
 
-if (DOM.openNowPlaying && DOM.nowplayingPane) {
+if (isElectronApp && DOM.openNowPlaying && DOM.nowplayingPane) {
     DOM.openNowPlaying.addEventListener('click', function () {
         DOM.nowplayingPane.classList.add('open');
         
@@ -1899,6 +2481,10 @@ if (DOM.btnCloseNowPlaying && DOM.nowplayingPane) {
         DOM.audio.addEventListener('loadedmetadata', function () {
             trackSourceChanging = false;
             trackSourceChangeId++;
+            if (pendingSharedSongTimestamp !== null) {
+                seekToSeconds(pendingSharedSongTimestamp);
+                pendingSharedSongTimestamp = null;
+            }
             if (pendingSeekPercent !== null) applySeekToAudio(pendingSeekPercent);
             if (isFinite(DOM.audio.duration)) {
                 updateSeekUI((DOM.audio.currentTime / DOM.audio.duration) * 100);
@@ -2077,6 +2663,7 @@ if (DOM.btnCloseNowPlaying && DOM.nowplayingPane) {
     if (DOM.btnAddToPlaylist) {
         DOM.btnAddToPlaylist.addEventListener('click', function (e) {
             e.stopPropagation();
+            if (!isElectronApp) return;
             if (currentIndex < 0 || !currentPlaylist[currentIndex]) return;
             var bounds = this.getBoundingClientRect();
             showSongContextMenu(bounds.left, bounds.top, currentPlaylist[currentIndex]);
@@ -2085,6 +2672,46 @@ if (DOM.btnCloseNowPlaying && DOM.nowplayingPane) {
 
     if (DOM.btnDownloadSong) {
         DOM.btnDownloadSong.addEventListener('click', downloadCurrentSong);
+    }
+
+    if (DOM.btnShareSong) {
+        DOM.btnShareSong.addEventListener('click', shareCurrentSong);
+    }
+
+    if (DOM.shareWithTimestamp) {
+        DOM.shareWithTimestamp.checked = false;
+        if (DOM.shareTimestampField) DOM.shareTimestampField.hidden = true;
+        if (DOM.shareTimestampInput) DOM.shareTimestampInput.disabled = true;
+        DOM.shareWithTimestamp.addEventListener('change', function () {
+            var includeTimestamp = DOM.shareWithTimestamp.checked;
+            if (DOM.shareTimestampField) DOM.shareTimestampField.hidden = !includeTimestamp;
+            if (DOM.shareTimestampInput) {
+                DOM.shareTimestampInput.disabled = !includeTimestamp || DOM.shareWithTimestamp.disabled;
+                if (includeTimestamp) {
+                    var currentTime = DOM.audio && Number.isFinite(DOM.audio.currentTime) ? DOM.audio.currentTime : 0;
+                    DOM.shareTimestampInput.value = formatTrackTime(currentTime);
+                }
+            }
+        });
+    }
+
+    if (DOM.btnPlayInDesktop) {
+        DOM.btnPlayInDesktop.addEventListener('click', function () {
+            var song = currentPlaylist[currentIndex];
+            if (!song) return;
+            pauseAudio();
+            if (desktopLaunchMenuTimeout) clearTimeout(desktopLaunchMenuTimeout);
+            desktopLaunchMenuTimeout = setTimeout(function () {
+                showDesktopLaunchContextMenu();
+            }, 3000);
+            window.location.href = 'draymusic://song?title=' + encodeURIComponent(song.title || '');
+        });
+    }
+
+    if (DOM.btnCloseDesktopLaunchNotice && DOM.contextMenu) {
+        DOM.btnCloseDesktopLaunchNotice.addEventListener('click', function () {
+            DOM.contextMenu.style.display = 'none';
+        });
     }
 
     if (DOM.btnStop) {

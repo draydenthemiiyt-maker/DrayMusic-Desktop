@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('api', {
+    platform: process.platform,
     minimize: () => ipcRenderer.send('window:minimize'),
     maximize: () => ipcRenderer.send('window:maximize'),
     close: () => ipcRenderer.send('window:close'),
@@ -14,7 +15,9 @@ contextBridge.exposeInMainWorld('api', {
     onTrayPrevious: (callback) => ipcRenderer.on('tray:previous', callback),
     onTrayPlayPause: (callback) => ipcRenderer.on('tray:play-pause', callback),
     onTrayNext: (callback) => ipcRenderer.on('tray:next', callback),
+    onProtocolSong: (callback) => ipcRenderer.on('protocol:play-song', (_event, title) => callback(title)),
     updateDiscordRPC: (data) => ipcRenderer.send('update-discord-rpc', data),
     getThemes: () => ipcRenderer.invoke('themes:list'),
-    openThemesFolder: () => ipcRenderer.invoke('themes:openFolder')
+    openThemesFolder: () => ipcRenderer.invoke('themes:openFolder'),
+    openDevTools: () => ipcRenderer.send('debug:open-devtools')
 });

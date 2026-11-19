@@ -1,0 +1,8 @@
+{
+    "name": "Cosmic Dust",
+    "author": "DrayMusic",
+    "version": "1.0.0",
+    "description": "The Cosmic Dust theme.",
+    "stylesheet": "css/style.css",
+    "order": 10
+}

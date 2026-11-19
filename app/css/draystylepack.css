@@ -1,47 +1,185 @@
 button {
-  padding: 6px 14px;
-  border-radius: 20px;
-  border: 1px solid transparent;
-  background-color: var(--background);
-  box-shadow: 0 0 0px var(--accent);
-  color: var(--text);
+  border-radius: 15px;
   font-size: 14px;
-  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.5s ease;
-}
-
-button:hover {
-    background-color: var(--background-hover-and-border);
-    box-shadow: 0 0 12px var(--accent);
 }
 
 button:active {
-    transform: scale(0.95);
-    background-color: var(--background-hover-and-border);
-    border-color: var(--accent);
-    color: var(--accent);
+  color: var(--accent);
 }
 
+button, select {
+  border: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  color: var(--text);
+  background-color: var(--background-hover-and-border);
+  transition: background-color 0.05s, background 0.05s, color 0.05s, transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.4);
+}
+
+button:hover, select:hover {
+  background-color: var(--background);
+}
+
+button:active, select:active, select:focus {
+  background-color: var(--background);
+  transform: scale(0.95);
+}
+
+.icon-btn {
+    background-color: var(--panel-bg);
+    min-width: 45px !important;
+    min-height: 45px !important;
+    width: 45px !important;
+    height: 45px !important;
+    max-width: 45px !important;
+    max-height: 45px !important;
+    padding: 8px !important;
+    border-radius: 50% !important;
+    box-shadow: 0 4px 16px rgb(0 0 0 / 10%);
+}
+
+.settings-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.settings-switch input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.settings-switch-track {
+    position: relative;
+    flex: 0 0 auto;
+    width: 40px;
+    height: 22px;
+    border-radius: 11px;
+    background: var(--background);
+    transition: background-color 0.2s ease;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    transition: transform 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.4);
+}
+
+.settings-switch-track:active {
+    transform: scale(0.93);
+}
+
+.settings-switch-track::after {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--text);
+    content: "";
+    transition: transform 0.2s ease;
+}
+
+.settings-switch input:checked + .settings-switch-track {
+    background: var(--background-hover-and-border);
+}
+
+.settings-switch input:checked + .settings-switch-track::after {
+    transform: translateX(18px);
+}
+
+.settings-switch input:focus-visible + .settings-switch-track {
+    box-shadow: 0 0 0 2px var(--text);
+}
+
+.win-switch {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    line-height: 1.4;
+}
+
+.win-switch input[type="checkbox"] {
+    position: static;
+    flex: 0 0 16px;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    opacity: 1;
+    accent-color: var(--accent);
+}
+
+.win-switch-label {
+    display: block;
+}
+
+select {
+    padding: 7px 30px 7px 12px;
+    border-radius: 8px;
+    font: inherit;
+}
+
+/* 1. Register animatable custom properties for the angle and colours */
+@property --border-angle {
+  syntax: "<angle>";
+  initial-value: -135deg;
+  inherits: false;
+}
+
+@property --grad-start {
+  syntax: "<color>";
+  initial-value: transparent;
+  inherits: false;
+}
+
+@property --grad-end {
+  syntax: "<color>";
+  initial-value: transparent;
+  inherits: false;
+}
+
+/* 2. Base Input */
 input[type=text] {
   padding: 6px 14px;
   border-radius: 20px;
-  border: 1px solid var(--background-hover-and-border);
-  box-shadow: 0 0 0px var(--accent);
-  background-color: var(--background);
+  border: 1px solid transparent;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
   color: var(--text);
   cursor: text !important;
   font-size: 14px;
-  transition: background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.5s ease;
+
+  /* Layer 1: Inner fill | Layer 2: Animated gradient | Layer 3: Base border */
+  background: 
+    linear-gradient(var(--background), var(--background)) padding-box,
+    linear-gradient(var(--border-angle), var(--grad-start), var(--grad-end)) border-box,
+    linear-gradient(var(--background-hover-and-border), var(--background-hover-and-border)) border-box;
+
+  transition: 
+    --border-angle 0.7s cubic-bezier(0.22, 1, 0.36, 1),
+    --grad-start 0.4s ease,
+    --grad-end 0.4s ease,
+    box-shadow 0.5s ease;
 }
 
+/* 3. Hover State */
 input[type=text]:hover {
-    background-color: var(--background-hover-and-border);
+  background: 
+    linear-gradient(var(--background-hover-and-border), var(--background-hover-and-border)) padding-box,
+    linear-gradient(var(--border-angle), var(--grad-start), var(--grad-end)) border-box,
+    linear-gradient(var(--background-hover-and-border), var(--background-hover-and-border)) border-box;
 }
 
+/* 4. Focus State: Sweeps 180deg around and fades in to rest at 45deg */
 input[type=text]:focus {
-  background-color: var(--background-hover-and-border);
-  border-color: var(--accent);
-  box-shadow: 0 0 12px var(--accent);
+  outline: none;
+  --border-angle: 45deg;
+  --grad-start: #00a0ff;
+  --grad-end: #00d9ff;
+
+  background: 
+    linear-gradient(var(--background-hover-and-border), var(--background-hover-and-border)) padding-box,
+    linear-gradient(var(--border-angle), var(--grad-start), var(--grad-end)) border-box,
+    linear-gradient(var(--background-hover-and-border), var(--background-hover-and-border)) border-box;
 }
+
 
 input[type=text]:focus::placeholder {
   color: transparent;

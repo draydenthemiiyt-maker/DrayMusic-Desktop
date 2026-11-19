@@ -6,16 +6,16 @@ html.dark {
     --text: #ffffff;
     --text-dim: #999999;
     --placeholder-text: #bfbfbf;
-    --background: #202020;
-    --background-hover-and-border: #404040;
-    --panel-bg: #101010;
+    --background: #5d0e5d;
+    --background-hover-and-border: #5d0e5d;
+    --panel-bg: #3f033f;
 }
 
 html.light {
     --text: #000000;
     --text-dim: #666666;
     --placeholder-text: #404040;
-    --background: #dfdfdf;
-    --background-hover-and-border: #bfbfbf;
-    --panel-bg: #efefef;
+    --background: #fee2fc;
+    --background-hover-and-border: #fee2fc;
+    --panel-bg: #f8b9f5;
 }

@@ -7,7 +7,7 @@ html.dark {
     --text-dim: #999999;
     --placeholder-text: #bfbfbf;
     --background: #710437;
-    --background-hover-and-border: #710437;
+    --background-hover-and-border: #8b315b;
     --panel-bg: #470626;
 }
 
@@ -16,6 +16,6 @@ html.light {
     --text-dim: #666666;
     --placeholder-text: #404040;
     --background: #fbe3e9;
-    --background-hover-and-border: #fbe3e9;
+    --background-hover-and-border: #fef5f7;
     --panel-bg: #fbbcd0;
 }

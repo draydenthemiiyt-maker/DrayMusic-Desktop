@@ -3,7 +3,6 @@
 const { app, BrowserWindow, ipcMain, Menu, nativeImage, shell, Tray, globalShortcut } = require('electron');
 const path = require('path');
 const fs = require('fs');
-const os = require('os');
 const { pathToFileURL } = require('url');
 const RPC = require('discord-rpc');
 const gotTheLock = app.requestSingleInstanceLock();
@@ -12,22 +11,24 @@ let isQuitting = false;
 let closeToTray = true;
 let windowClosedToTray = false;
 let playbackState = { isPlaying: false, hasSong: false, title: '' };
-const isLegacyWin = (() => {
-    if (process.platform !== 'win32') return false;
-    const release = os.release();
-    const parts = release.split('.').map(Number);
-    return parts[0] < 10;
-})();
+let pendingProtocolSongTitle = null;
 
 if (!gotTheLock) {
     app.quit();
 } else {
-    app.on('second-instance', () => {
-        if (BrowserWindow.getAllWindows().length > 0) {
-            showWindow();
+    app.on('second-instance', (event, commandLine) => {
+        const deepLink = commandLine.find((argument) => /^draymusic:/i.test(argument));
+        if (!deepLink || !handleDeepLink(deepLink)) {
+            if (BrowserWindow.getAllWindows().length > 0) showWindow();
+            else createWindow();
         }
     });
 }
+
+app.on('open-url', (event, deepLink) => {
+    event.preventDefault();
+    handleDeepLink(deepLink);
+});
 
 const clientId = '1534336322481819648';
 let rpcClient = null;
@@ -199,11 +200,26 @@ function readThemesFrom(rootDir, source) {
     return themes.sort((a, b) => (a.order - b.order) || a.name.localeCompare(b.name));
 }
 
+const DEFAULT_THEME = {
+    id: 'builtin:default',
+    source: 'builtin',
+    name: 'DrayMusic Default',
+    author: 'DrayMusic',
+    version: '2.5.0',
+    description: 'The Default DrayMusic colors.',
+    order: 0,
+    href: '',
+    preview: null,
+    css: ''
+};
+
 ipcMain.handle('themes:list', () => {
     const userDir = ensureUserThemesDir();
     return {
         userThemesDir: userDir,
-        themes: readThemesFrom(BUILTIN_THEMES_DIR, 'builtin').concat(readThemesFrom(userDir, 'user'))
+        themes: [DEFAULT_THEME]
+            .concat(readThemesFrom(BUILTIN_THEMES_DIR, 'builtin'))
+            .concat(readThemesFrom(userDir, 'user'))
     };
 });
 
@@ -215,7 +231,11 @@ function createWindow() {
         height: 800,
         minWidth: 632,
         minHeight: 123,
-        frame: isLegacyWin,
+        frame: process.platform !== 'win32',
+        ...(process.platform === 'darwin' ? {
+            titleBarStyle: 'hiddenInset',
+            trafficLightPosition: { x: 14, y: 14 }
+        } : {}),
         resizable: true,
         show: false,
         webPreferences: {
@@ -228,6 +248,7 @@ function createWindow() {
 
     win.webContents.setVisualZoomLevelLimits(1, 1).catch(console.error);
     win.once('ready-to-show', () => win.show());
+    win.webContents.on('did-finish-load', () => dispatchPendingProtocolSong(win));
     win.loadFile(path.join(__dirname, 'app', 'main.html'));
     win.webContents.on('before-input-event', (event, input) => {
         const controlOrCmd = input.control || input.meta;
@@ -249,20 +270,6 @@ function createWindow() {
         return { action: 'deny' };
     });
 
-    ipcMain.on('window:minimize', (event) => {
-        if (event.sender === win.webContents) win.minimize();
-    });
-    ipcMain.on('window:maximize', () => {
-        win.isMaximized() ? win.unmaximize() : win.maximize();
-    });
-    ipcMain.on('window:close', (event) => {
-        if (event.sender === win.webContents) win.close();
-    });
-    ipcMain.on('window:set-close-to-tray', (event, enabled) => {
-        if (event.sender === win.webContents && typeof enabled === 'boolean') closeToTray = enabled;
-    });
-    ipcMain.handle('window:isMaximized', () => win.isMaximized());
-
     win.on('minimize', () => win.webContents.send('window:minimized'));
     win.on('restore', () => win.webContents.send('window:restored'));
     win.on('show', () => win.webContents.send('window:restored'));
@@ -275,6 +282,7 @@ function createWindow() {
             updateTray();
             return;
         }
+        if (process.platform === 'darwin') return;
         isQuitting = true;
         app.quit();
     });
@@ -282,12 +290,89 @@ function createWindow() {
     win.on('maximize', () => win.webContents.send('window:maximized'));
     win.on('unmaximize', () => win.webContents.send('window:unmaximized'));
     
-    win.webContents.on('did-finish-load', () => {
-        if (isLegacyWin) {
-            win.webContents.executeJavaScript(`document.documentElement.classList.add('legacy-platform');`).catch(() => {});
-        }
-    });
 }
+
+function getSongTitleFromProtocol(deepLink) {
+    if (typeof deepLink !== 'string' || !/^draymusic:/i.test(deepLink)) return null;
+
+    let parsed;
+    try {
+        parsed = new URL(deepLink);
+    } catch (error) {
+        return null;
+    }
+    if (parsed.protocol !== 'draymusic:') return null;
+
+    let title = parsed.searchParams.get('title');
+    if (!title && parsed.hash) {
+        const hashMatch = parsed.hash.match(/^#{1,2}song\+(.+)$/i);
+        if (hashMatch) {
+            try {
+                title = decodeURIComponent(hashMatch[1]);
+            } catch (error) {
+                return null;
+            }
+        }
+    }
+    if (!title && parsed.hostname.toLowerCase() === 'song') {
+        try {
+            title = decodeURIComponent(parsed.pathname.replace(/^\/+/, ''));
+        } catch (error) {
+            return null;
+        }
+    }
+
+    return typeof title === 'string' ? title.trim() || null : null;
+}
+
+function dispatchPendingProtocolSong(win) {
+    if (!pendingProtocolSongTitle || !win || win.isDestroyed() || win.webContents.isLoading()) return;
+    win.webContents.send('protocol:play-song', pendingProtocolSongTitle);
+    pendingProtocolSongTitle = null;
+}
+
+function handleDeepLink(deepLink) {
+    const title = getSongTitleFromProtocol(deepLink);
+    if (!title) return false;
+
+    pendingProtocolSongTitle = title;
+    const win = BrowserWindow.getAllWindows()[0];
+    if (win) {
+        showWindow();
+        dispatchPendingProtocolSong(win);
+    } else if (app.isReady()) {
+        createWindow();
+    }
+    return true;
+}
+
+function getWindowFromEvent(event) {
+    return BrowserWindow.fromWebContents(event.sender);
+}
+
+ipcMain.on('window:minimize', (event) => {
+    const win = getWindowFromEvent(event);
+    if (win) win.minimize();
+});
+ipcMain.on('window:maximize', (event) => {
+    const win = getWindowFromEvent(event);
+    if (win) win.isMaximized() ? win.unmaximize() : win.maximize();
+});
+ipcMain.on('window:close', (event) => {
+    const win = getWindowFromEvent(event);
+    if (win) win.close();
+});
+ipcMain.on('debug:open-devtools', (event) => {
+    const win = getWindowFromEvent(event);
+    if (win && !win.isDestroyed()) win.webContents.openDevTools();
+});
+ipcMain.on('window:set-close-to-tray', (event, enabled) => {
+    if (getWindowFromEvent(event) && typeof enabled === 'boolean') closeToTray = enabled;
+});
+ipcMain.handle('window:isMaximized', (event) => {
+    const win = getWindowFromEvent(event);
+    return win ? win.isMaximized() : false;
+});
 
 function showWindow() {
     const win = BrowserWindow.getAllWindows()[0];
@@ -369,8 +454,21 @@ ipcMain.on('window:playback-state', (event, state) => {
 });
 
 app.whenReady().then(() => {
+    if (!gotTheLock) return;
     ensureUserThemesDir();
-    createWindow();
+    const protocolRegistered = process.defaultApp && process.argv.length >= 2
+        ? app.setAsDefaultProtocolClient('draymusic', process.execPath, [path.resolve(process.argv[1])])
+        : app.setAsDefaultProtocolClient('draymusic');
+    if (!protocolRegistered) console.warn('Could not register the DrayMusic URL protocol');
+
+    const initialDeepLink = process.argv.find((argument) => /^draymusic:/i.test(argument));
+    if (initialDeepLink) handleDeepLink(initialDeepLink);
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+});
+
+app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    else showWindow();
 });
 
 app.on('will-quit', () => {

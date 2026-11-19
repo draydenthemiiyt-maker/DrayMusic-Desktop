@@ -12,11 +12,21 @@
   "build": {
     "appId": "com.draydenytprojects.draymusicdesktop",
     "productName": "DrayMusic Desktop",
+    "protocols": [
+      {
+        "name": "DrayMusic Link",
+        "schemes": ["draymusic"]
+      }
+    ],
     "asar": true,
     "compression": "maximum",
     "win": {
       "target": "nsis",
       "icon": "icon.png"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.music"
     },
     "files": [
       "main.js",

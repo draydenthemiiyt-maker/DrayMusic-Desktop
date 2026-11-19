@@ -4,7 +4,7 @@
     var LINK_ID = 'themeStylesheet';
     var STORAGE_ID = 'drayTheme';
     var STORAGE_HREF = 'drayThemeHref';
-    var DEFAULT_THEME_ID = 'builtin:default02';
+    var DEFAULT_THEME_ID = 'builtin:default';
 
     var THEME_VARS = [
         '--accent', '--text', '--text-dim', '--placeholder-text',
@@ -210,6 +210,23 @@
     function applyTheme(theme) {
         if (!theme) return;
         if (theme.id === activeId && theme.href === activeHref) {
+            updateSelection();
+            return;
+        }
+
+        if (theme.id === DEFAULT_THEME_ID) {
+            if (pendingLink) {
+                pendingLink.onload = pendingLink.onerror = null;
+                if (pendingLink.parentNode) pendingLink.parentNode.removeChild(pendingLink);
+                pendingLink = null;
+            }
+            var defaultLink = document.getElementById(LINK_ID);
+            if (defaultLink) defaultLink.removeAttribute('href');
+
+            activeId = theme.id;
+            activeHref = '';
+            writeStorage(STORAGE_ID, theme.id);
+            writeStorage(STORAGE_HREF, '');
             updateSelection();
             return;
         }

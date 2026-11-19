@@ -26,24 +26,36 @@
     <!-- Just a script (yes it's inline don't get mad) -->
     <script>
         (function () {
-            try {
-                var href = localStorage.getItem('drayThemeHref');
-                if (href) document.getElementById('themeStylesheet').setAttribute('href', href);
-            } catch (e) {}
+            if (window.api && window.api.platform) {
+                try {
+                    var href = localStorage.getItem('drayThemeHref');
+                    if (href) document.getElementById('themeStylesheet').setAttribute('href', href);
+                } catch (e) {}
+            }
+
+            if (window.api && window.api.platform === 'win32') {
+                document.documentElement.classList.add('windows-electron');
+            } else if (window.api && window.api.platform === 'darwin') {
+                document.documentElement.classList.add('macos-electron');
+            } else if (!window.api || !window.api.platform) {
+                document.documentElement.classList.add('browser-mode');
+            }
         })();
     </script>
 </head>
 <body class="no-song">
-    <!-- Heres the titlebar, It is a replacement for the native Win32 titlebar as it looks ass -->
+    <!-- Custom titlebar for Windows and the inset native titlebar area on macOS. -->
     <div class="titlebar">
         <div class="titlebar-left">
             <img src="assets/icon.png">
             <h1>DrayMusic</h1>
         </div>
         <!-- Some gay search bar -->
-        <input type="text" id="searchInput" placeholder="Search">
+        <div class="search-input-wrap">
+            <span class="material-symbols-rounded search-input-icon" aria-hidden="true">search</span>
+            <input type="text" id="searchInput" placeholder="Search">
+        </div>
 
-        <!-- Windows buttons, sorry macos not yet -->
         <div class="titlebar-right">
             <button id="min-btn" class="titlebar-btn">&#xE921;</button>
             <button id="max-btn" class="titlebar-btn">&#xE922;</button>
@@ -67,11 +79,6 @@
                     <span class="material-symbols-rounded">favorite</span><span class="sidebar-label">Favorites</span>
                 </button>
 
-                <!-- Don't look at me, Look at the button below me -->
-                <button class="sidebar-link" data-page="3" title="Settings">
-                    <span class="material-symbols-rounded">settings</span><span class="sidebar-label">Settings</span>
-                </button>
-
                 <!-- Don't look at me, Look at the button above me -->
 <button class="sidebar-link" data-page="666" title="Create" onclick="window.open('https://draymusic-private.onrender.com')">
     <span class="material-symbols-rounded">add_circle</span><span class="sidebar-label">Create</span>
@@ -80,6 +87,15 @@
                     <span class="material-symbols-rounded">queue_music</span><span class="sidebar-label">Playlists</span>
                 </button>
                 <div id="sidebarPlaylistList" class="sidebar-playlists" aria-label="Your playlists"></div>
+                <button class="sidebar-link browser-sidebar-link" data-page="667" title="Join our Discord" onclick="window.open('https://discord.gg/dHqFDVZBQg')">
+                    <span class="material-symbols-rounded">forum</span><span class="sidebar-label">Join our Discord</span>
+                </button>
+                <button class="sidebar-link browser-sidebar-link" data-page="668" title="Download DrayMusic" onclick="window.open('https://github.com/draydenthemiiyt-maker/DrayMusic-Desktop')">
+                    <span class="material-symbols-rounded">download</span><span class="sidebar-label">Download DrayMusic</span>
+                </button>
+                <button class="sidebar-link app-settings-link" data-page="3" title="Settings">
+                    <span class="material-symbols-rounded">settings</span><span class="sidebar-label">Settings</span>
+                </button>
             </nav>
         </aside>
 
@@ -135,7 +151,7 @@
                         </div>
 
                         <div class="control-group">
-                            <h3>Audio effects</h3>
+                            <h3 id="audioEffectsHeading">Audio effects</h3>
                             <button id="btnResetEq" type="button">Reset effects to defaults</button>
                         </div>
 
@@ -248,6 +264,14 @@
             <button id="menuBtnStop" class="context-btn"><span class="material-symbols-rounded">stop</span></button>
             <button id="menuBtnFavorite" class="context-btn"><span class="material-symbols-rounded">star</span></button>
         </div>
+        <div id="contextDesktopLaunchOptions" style="display: none;">
+            <button id="btnCloseDesktopLaunchNotice" class="context-btn context-launch-close" type="button" aria-label="Close">
+                <span class="material-symbols-rounded">close</span>
+            </button>
+            <h4>You can close this tab now</h4>
+            <p>Launch failed? Download DrayMusic Desktop</p>
+            <a class="context-btn context-launch-download" href="https://github.com/draydenthemiiyt-maker/DrayMusic-Desktop" target="_blank" rel="noopener noreferrer">Download DrayMusic Desktop</a>
+        </div>
     </div>
 
     <div id="renamePlaylistMenu" class="context-menu context-submenu" style="display: none;">
@@ -281,7 +305,7 @@
             <div class="player-main">
                 <div class="seek-control">
                     <span id="currentTimeLabel" class="seek-time">0:00</span>
-                    <input type="range" id="seekBar" value="0" step="any" aria-label="Seek through song">
+                    <input type="range" id="seekBar" min="0" max="100" value="0" step="any" aria-label="Seek through song">
                     <span id="totalTimeLabel" class="seek-time">0:00</span>
                 </div>
                 <button id="btnFavorite" class="icon-btn wigdisable" disabled><span class="material-symbols-rounded">star</span></button>
@@ -295,6 +319,20 @@
                 <button id="btnAddToPlaylist" class="icon-btn" aria-label="Add playing song to playlist" title="Add to playlist" disabled><span class="material-symbols-rounded">playlist_add</span></button>
                 <button id="btnDownloadSong" class="icon-btn" aria-label="Download playing song" title="Download song" disabled><span class="material-symbols-rounded">download</span></button>
                 <button id="btnStop" class="icon-btn" type="button" aria-label="Stop playback" title="Stop playback" disabled><span class="material-symbols-rounded">stop</span></button>
+                <div class="share-control" id="shareControl">
+                    <div class="share-popover">
+                        <label class="share-timestamp-toggle" for="shareWithTimestamp">
+                            <input type="checkbox" id="shareWithTimestamp" disabled>
+                            <span>Share with timestamp</span>
+                        </label>
+                        <label class="share-timestamp-field" id="shareTimestampField" for="shareTimestampInput" hidden>
+                            <span>Timestamp</span>
+                            <input type="text" id="shareTimestampInput" inputmode="numeric" placeholder="0:00" aria-label="Timestamp (minutes:seconds)" disabled>
+                        </label>
+                    </div>
+                    <button id="btnShareSong" class="icon-btn" type="button" aria-label="Share playing song" title="Share song" disabled><span class="material-symbols-rounded">share</span></button>
+                </div>
+                <button id="btnPlayInDesktop" class="icon-btn" type="button" aria-label="Play in DrayMusic Desktop" title="Play in DrayMusic Desktop" disabled><span class="material-symbols-rounded">open_in_new</span></button>
                 <div class="volume-control" id="volumeControl">
                     <div class="volume-popover">
                         <label for="masterVolumeSlider">Volume <span id="masterVolumePercent">100%</span></label>
@@ -307,10 +345,12 @@
             </div>
         </div>
 
+    <div id="shareNotification" class="share-notification" role="status" aria-live="polite"></div>
+
     <div id="nowplayingPane" class="side-pane" style="top: 0; bottom: 0; z-index: 99999; -webkit-app-region: no-drag;">
         <img id="nowplayingArtBackground" class="player-art" src="assets/icon.png">
 
-<div class="pane-content" style="display: flex; align-items: center; justify-content: center; gap: 30px;">
+<div class="pane-content">
     <button id="btnCloseNowPlaying" class="icon-btn" style="position: absolute;top: 0;left: 0;margin: 20px;"><span class="material-symbols-rounded">close</span></button>
     
     <img id="nowplayingArt" src="assets/icon.png" alt="Album Art">
